@@ -1,0 +1,310 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="View stories on Felcin." />
+  <meta name="theme-color" content="#0f766e" />
+  <link rel="icon" href="/favicon.ico" />
+  <link rel="apple-touch-icon" href="/logo192.png" />
+  <link rel="manifest" href="/manifest.json" />
+  <title>Stories � Felcin</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@600;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" rel="stylesheet" />
+  <script>try{if(localStorage.getItem('felcin-theme')==='dark')document.documentElement.classList.add('dark');}catch(e){}</script>
+  <link rel="stylesheet" crossorigin href="/assets/main-o5imZzSi.css">
+</head>
+<body class="min-h-screen bg-slate-50 text-slate-900">
+
+  <!-- Sidebar (desktop) -->
+  <aside class="hidden lg:flex flex-col w-60 shrink-0 fixed top-0 left-0 bottom-0 border-r border-slate-200 bg-white z-30 overflow-y-auto">
+    <a href="/" class="flex items-center gap-2 px-5 pt-5 pb-4 no-underline">
+      <img src="/static/logo-nav.png" alt="Felcin" class="w-8 h-8" width="32" height="32">
+      <span class="font-bold text-xl text-slate-900 tracking-tight">Felcin</span>
+    </a>
+    <nav class="flex flex-col gap-0.5 px-3 flex-1">
+      <a href="/" class="nav-link"><span class="material-symbols-outlined text-[22px]">home</span>Home</a>
+      <a href="/explore" class="nav-link"><span class="material-symbols-outlined text-[22px]">explore</span>Explore</a>
+      <a href="/reels" class="nav-link"><span class="material-symbols-outlined text-[22px]">play_circle</span>Reels</a>
+      <a href="/stories" class="nav-link active"><span class="material-symbols-outlined text-[22px]">auto_stories</span>Stories</a>
+      <a href="/live" class="nav-link"><span class="material-symbols-outlined text-[22px]">live_tv</span>Live</a>
+      <a href="/private-chats" class="nav-link"><span class="material-symbols-outlined text-[22px]">chat</span>Messages</a>
+      <a href="/notifications" class="nav-link"><span class="material-symbols-outlined text-[22px]">notifications</span>Notifications</a>
+      <a href="/creator" class="nav-link"><span class="material-symbols-outlined text-[22px]">add_circle</span>Create</a>
+      <a href="/dashboard" class="nav-link"><span class="material-symbols-outlined text-[22px]">bar_chart</span>Dashboard</a>
+      <a href="/bookmarks" class="nav-link"><span class="material-symbols-outlined text-[22px]">bookmark</span>Bookmarks</a>
+
+    </nav>
+    <div class="border-t border-slate-100 p-3 mt-auto flex flex-col gap-0.5">
+      <a href="/profile" class="flex items-center gap-3 px-2 py-1.5 rounded-xl hover:bg-slate-50 transition-colors no-underline text-slate-700">
+        <div id="nav-avatar" class="w-9 h-9 rounded-full bg-slate-200 flex items-center justify-center text-sm font-bold text-slate-500 shrink-0">?</div>
+        <div class="min-w-0 flex-1">
+          <div id="nav-name" class="text-sm font-semibold text-slate-800 truncate">Profile</div>
+          <div class="text-xs text-slate-400">View profile</div>
+        </div>
+      </a>
+      <button onclick="toggleMoreMenu()" class="flex items-center gap-3 w-full px-2 py-1.5 rounded-xl hover:bg-slate-50 transition-colors text-left border-none bg-transparent cursor-pointer">
+        <div class="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center shrink-0">
+          <span class="material-symbols-outlined text-[22px] text-slate-600">more_horiz</span>
+        </div>
+        <span class="text-sm font-semibold text-slate-700">More</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- Main area -->
+  <div class="lg:pl-60 pb-16 lg:pb-0 min-h-screen">
+    <!-- Header -->
+    <div class="sticky top-0 z-20 bg-white/95 backdrop-blur border-b border-slate-100 px-4 lg:px-6 py-4">
+      <h1 class="text-xl font-bold">Stories</h1>
+    </div>
+
+    <!-- Stories grid -->
+    <div class="grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-4 p-4 lg:p-6 max-sm:grid-cols-[repeat(auto-fill,minmax(130px,1fr))] max-sm:gap-2" id="stories-grid">
+      <div class="col-span-full text-center py-10 text-slate-400 text-sm">Loading stories...</div>
+    </div>
+  </div>
+
+  <!-- Story viewer overlay -->
+  <div id="sv" style="display:none;position:fixed;inset:0;z-index:500;background:#000;flex-direction:column;overflow:hidden;">
+    <div id="sv-bars" style="position:absolute;top:0;left:0;right:0;display:flex;gap:3px;padding:8px 12px 0;z-index:3;pointer-events:none;"></div>
+    <div style="position:absolute;top:0;left:0;right:0;padding:18px 14px 8px;display:flex;align-items:center;justify-content:space-between;z-index:4;">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div id="sv-av" style="width:34px;height:34px;border-radius:50%;overflow:hidden;border:1.5px solid rgba(255,255,255,0.6);flex-shrink:0;background:#334155;"></div>
+        <div id="sv-nm" style="color:#fff;font-weight:700;font-size:13px;text-shadow:0 1px 4px rgba(0,0,0,.6);"></div>
+      </div>
+      <button onclick="closeSV()" style="background:rgba(0,0,0,.35);border:none;border-radius:50%;width:34px;height:34px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#fff;"><span class="material-symbols-outlined" style="font-size:20px;">close</span></button>
+    </div>
+    <div id="sv-media" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;overflow:hidden;z-index:1;"></div>
+    <div style="position:absolute;bottom:0;left:0;right:0;padding:14px 18px;padding-bottom:max(18px,env(safe-area-inset-bottom));background:linear-gradient(transparent,rgba(0,0,0,.7));display:flex;align-items:center;justify-content:space-between;z-index:4;">
+      <button id="sv-like-btn" onclick="svToggleLike()" style="display:flex;align-items:center;gap:6px;background:rgba(255,255,255,.15);border:none;border-radius:20px;padding:7px 14px;color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;">
+        <span class="material-symbols-outlined" id="sv-li" style="font-size:18px;">favorite_border</span>
+        <span id="sv-lc">0</span>
+      </button>
+      <a id="sv-cmt" href="#" style="display:flex;align-items:center;gap:5px;background:rgba(255,255,255,.15);border-radius:20px;padding:7px 14px;color:#fff;font-size:13px;font-weight:600;text-decoration:none;font-family:inherit;">
+        <span class="material-symbols-outlined" style="font-size:18px;">chat_bubble</span>Comments
+      </a>
+    </div>
+    <div onclick="svNav(-1)" style="position:absolute;left:0;top:60px;bottom:80px;width:35%;z-index:2;cursor:pointer;"></div>
+    <div onclick="svNav(1)" style="position:absolute;right:0;top:60px;bottom:80px;width:65%;z-index:2;cursor:pointer;"></div>
+  </div>
+
+  <!-- Mobile bottom nav -->
+  <nav class="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-slate-200 grid grid-cols-6" style="padding-bottom:env(safe-area-inset-bottom,0px)">
+    <a href="/" class="flex flex-col items-center justify-center min-h-[50px] text-slate-500 no-underline hover:text-teal-700 transition-colors"><span class="material-symbols-outlined text-[26px]">home</span></a>
+    <a href="/explore" class="flex flex-col items-center justify-center min-h-[50px] text-slate-500 no-underline hover:text-teal-700 transition-colors"><span class="material-symbols-outlined text-[26px]">explore</span></a>
+    <a href="/reels" class="flex flex-col items-center justify-center min-h-[50px] text-slate-500 no-underline hover:text-teal-700 transition-colors"><span class="material-symbols-outlined text-[26px]">play_circle</span></a>
+    <a href="/creator" class="flex flex-col items-center justify-center min-h-[50px] text-slate-500 no-underline hover:text-teal-700 transition-colors"><span class="material-symbols-outlined text-[26px]">add_circle</span></a>
+    <a href="/notifications" class="flex flex-col items-center justify-center min-h-[50px] text-slate-500 no-underline hover:text-teal-700 transition-colors"><span class="material-symbols-outlined text-[26px]">notifications</span></a>
+    <a href="/profile" class="flex flex-col items-center justify-center min-h-[50px] text-slate-500 no-underline hover:text-teal-700 transition-colors"><span class="material-symbols-outlined text-[26px]">person</span></a>
+  </nav>
+
+  <script defer src="/static/felcin-common.js?v=20260508-v4"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-check-compat.js"></script>
+  <script>
+    const firebaseConfig={apiKey:"AIzaSyCKmWO04sVRhxZv3EuK_j_53yup9K_LEeE",authDomain:"felcin.firebaseapp.com",projectId:"felcin",storageBucket:"felcin.firebasestorage.app",messagingSenderId:"989891719192",appId:"1:989891719192:web:1266786c201c87f4c8536d"};
+    let db,currentUser,svList=[],svProf={},svLiked=new Set(),svIdx=0,svTimer=null;
+
+    document.addEventListener("DOMContentLoaded",async ()=>{
+      if(typeof firebase==="undefined")return;
+      firebase.initializeApp(firebaseConfig);
+      if(typeof initAppCheck==="function")initAppCheck();
+      db=firebase.firestore();
+
+      try{await firebase.auth().setPersistence(firebase.auth.Auth.Persistence.LOCAL);}catch(e){}
+
+      try{
+        if(typeof firebase.auth().authStateReady==="function"){
+          await firebase.auth().authStateReady();
+        }else{
+          await new Promise(resolve=>{const u=firebase.auth().onAuthStateChanged(()=>{u();resolve();});});
+        }
+      }catch(e){}
+
+      const user=firebase.auth().currentUser;
+      if(!user){window.location.href="/login";return;}
+      if(!canAccessApp(user)){await firebase.auth().signOut().catch(()=>{});showVerificationNoticeAndRedirect();return;}
+      currentUser=user;
+
+      (async function(){try{var _p=await db.collection("users").doc(currentUser.uid).collection("public").doc("profile").get();var _d=_p.exists?_p.data():{};var _ph=_d.photoURL||"";var _nm=_d.displayName||currentUser.displayName||currentUser.email||"";var _in=_nm.charAt(0).toUpperCase();var _av=document.getElementById("nav-avatar");if(_av&&_ph){_av.innerHTML='<img src="'+_ph+'" style="width:100%;height:100%;border-radius:50%;object-fit:cover;" onerror="this.style.display=\'none\';this.parentElement.textContent=\''+_in+'\'">';}else if(_av&&_in){_av.textContent=_in;}var _nn=document.getElementById("nav-name");if(_nn&&_nm)_nn.textContent=_nm;}catch(e){}})();
+
+      loadStories();
+    });
+
+    async function loadStories(){
+      const grid=document.getElementById("stories-grid");
+      try{
+        const followsSnap=await db.collection("follows").where("followerId","==",currentUser.uid).get();
+        const followingIds=followsSnap.docs.map(d=>d.data().followingId);
+        followingIds.push(currentUser.uid);
+
+        let stories=[];
+        const chunks=[];
+        for(let i=0;i<followingIds.length;i+=30)chunks.push(followingIds.slice(i,i+30));
+        for(const chunk of chunks){
+          const snap=await db.collection("posts").where("authorId","in",chunk).orderBy("createdAt","desc").limit(30).get();
+          snap.forEach(doc=>{
+            const d={id:doc.id,...doc.data()};
+            if(d.mediaUrl)stories.push(d);
+          });
+        }
+        stories.sort((a,b)=>{
+          const at=a.createdAt?.toDate?a.createdAt.toDate().getTime():0;
+          const bt=b.createdAt?.toDate?b.createdAt.toDate().getTime():0;
+          return bt-at;
+        });
+        const _cutoff=Date.now()-24*60*60*1000;
+        stories=stories.filter(s=>{const t=s.createdAt?.toDate?s.createdAt.toDate().getTime():0;return t>=_cutoff;});
+        stories=stories.slice(0,24);
+
+        if(!stories.length){
+          grid.innerHTML='<div class="col-span-full text-center py-16 text-slate-400"><p class="text-xl font-bold text-slate-700 mb-2">No stories yet</p><p>Follow people to see their stories here.</p></div>';
+          return;
+        }
+
+        const authorIds=[...new Set(stories.map(s=>s.authorId))];
+        const profiles={};
+        for(const uid of authorIds){
+          try{
+            const uDoc=await db.collection("users").doc(uid).get();
+            const pDoc=await db.collection("users").doc(uid).collection("public").doc("profile").get();
+            const base=uDoc.exists?uDoc.data():{};
+            const pub=pDoc.exists?pDoc.data():{};
+            profiles[uid]={displayName:pub.displayName||base.displayName||"User",photoURL:pub.photoURL||base.photoURL||"",photoFocusY:pub.photoFocusY??base.photoFocusY??50};
+          }catch(e){profiles[uid]={displayName:"User",photoURL:"",photoFocusY:50};}
+        }
+
+        const likedIds=new Set();
+        await Promise.all(stories.map(s=>
+          db.collection("posts").doc(s.id).collection("likes").doc(currentUser.uid).get()
+            .then(d=>{if(d.exists)likedIds.add(s.id);})
+            .catch(()=>{})
+        ));
+
+        grid.innerHTML="";
+        stories.forEach(s=>{
+          const profile=profiles[s.authorId]||{displayName:"User",photoURL:"",photoFocusY:50};
+          const time=typeof getTimeString==="function"?getTimeString(s.createdAt):"";
+          const initial=profile.displayName.charAt(0).toUpperCase();
+          const avatarHtml=profile.photoURL?'<img class="story-avatar" src="'+esc(profile.photoURL)+'" alt=""'+getAvatarStyleAttr(profile.photoFocusY)+'>':'<div class="story-avatar-fallback">'+initial+'</div>';
+          const isVideo=typeof resolveMediaType==="function"?resolveMediaType(s.contentType,s.mimeType,s.mediaUrl)==="video":/\.(mp4|webm|mov|m4v)($|\?)/i.test(s.mediaUrl||"")||(s.mimeType&&s.mimeType.startsWith("video/"));
+          const thumbHtml=isVideo?'<div class="story-vid-bg"><span class="material-symbols-outlined">play_circle</span></div>':'<img src="'+esc(s.mediaUrl)+'" alt="Story" loading="lazy">';
+          const isLiked=likedIds.has(s.id);
+          const card=document.createElement("div");
+          card.className="story-card";
+          card.dataset.pid=s.id;
+          card.innerHTML=thumbHtml+avatarHtml+'<div class="story-card-info"><div class="story-card-name">'+esc(profile.displayName)+'</div><div class="story-card-time">'+esc(time)+'</div><div class="story-actions"><button class="s-like-btn'+(isLiked?" liked":"")+'" data-pid="'+esc(s.id)+'" aria-label="Like"><span class="material-symbols-outlined">'+(isLiked?"favorite":"favorite_border")+'</span><span class="s-lk-count">'+(s.likes||0)+'</span></button></div></div>';
+          grid.appendChild(card);
+        });
+
+        grid.addEventListener("click",async function(e){
+          var lb=e.target.closest(".s-like-btn");
+          if(lb&&currentUser){
+            e.stopPropagation();
+            e.preventDefault();
+            var pid=lb.dataset.pid;
+            if(!pid)return;
+            var was=lb.classList.contains("liked");
+            var now=!was;
+            lb.classList.toggle("liked",now);
+            var ic=lb.querySelector(".material-symbols-outlined");
+            if(ic)ic.textContent=now?"favorite":"favorite_border";
+            var ce=lb.querySelector(".s-lk-count");
+            if(ce)ce.textContent=String(Math.max(0,(parseInt(ce.textContent)||0)+(now?1:-1)));
+            try{
+              var likeRef=db.collection("posts").doc(pid).collection("likes").doc(currentUser.uid);
+              if(now){
+                await likeRef.set({userId:currentUser.uid,createdAt:firebase.firestore.FieldValue.serverTimestamp()});
+                await db.collection("posts").doc(pid).update({likes:firebase.firestore.FieldValue.increment(1)});
+              }else{
+                await likeRef.delete();
+                await db.collection("posts").doc(pid).update({likes:firebase.firestore.FieldValue.increment(-1)});
+              }
+            }catch(err){
+              lb.classList.toggle("liked",was);
+              if(ic)ic.textContent=was?"favorite":"favorite_border";
+              if(ce)ce.textContent=String(Math.max(0,(parseInt(ce.textContent)||0)+(was?1:-1)));
+            }
+            return;
+          }
+          var sc=e.target.closest(".story-card");
+          if(sc&&sc.dataset.pid){var si=svList.findIndex(function(s){return s.id===sc.dataset.pid;});if(si>=0)openSV(si);}
+        });
+        svList=[...stories];svProf=profiles;svLiked=new Set(likedIds);
+      }catch(err){
+        console.error("Stories error:",err);
+        grid.innerHTML='<div class="col-span-full text-center py-16 text-slate-400">Could not load stories</div>';
+      }
+    }
+
+    function esc(t){const d=document.createElement("div");d.textContent=String(t||"");return d.innerHTML;}
+
+    // -- Story viewer --
+    function openSV(idx){svIdx=idx;document.getElementById("sv").style.display="flex";document.body.style.overflow="hidden";renderSV();}
+    function closeSV(){document.getElementById("sv").style.display="none";document.body.style.overflow="";clearTimeout(svTimer);document.getElementById("sv-media").innerHTML="";}
+    function svNav(dir){clearTimeout(svTimer);var ni=svIdx+dir;if(ni<0||ni>=svList.length){closeSV();return;}svIdx=ni;renderSV();}
+    function renderSV(){
+      var s=svList[svIdx];if(!s)return;
+      var bars=document.getElementById("sv-bars");bars.innerHTML="";
+      svList.forEach(function(_,i){var b=document.createElement("div");b.style.cssText="flex:1;height:2.5px;border-radius:3px;overflow:hidden;background:rgba(255,255,255,.35);";if(i<svIdx){b.innerHTML='<div style="height:100%;width:100%;background:rgba(255,255,255,.9);"></div>';}else if(i===svIdx){b.innerHTML='<div id="sv-prog" style="height:100%;width:0;background:#fff;transition:width 5s linear;"></div>';}bars.appendChild(b);});
+      setTimeout(function(){var p=document.getElementById("sv-prog");if(p)p.style.width="100%";},60);
+      var prof=svProf[s.authorId]||{displayName:"User",photoURL:""};
+      var av=document.getElementById("sv-av");
+      av.innerHTML=prof.photoURL?'<img src="'+esc(prof.photoURL)+'" style="width:100%;height:100%;object-fit:cover;">':'<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:15px;">'+esc(prof.displayName.charAt(0).toUpperCase())+'</div>';
+      document.getElementById("sv-nm").textContent=prof.displayName;
+      var med=document.getElementById("sv-media");
+      var isV=typeof resolveMediaType==="function"?resolveMediaType(s.contentType,s.mimeType,s.mediaUrl)==="video":false;
+      if(isV){med.innerHTML='<video src="'+esc(s.mediaUrl)+'" style="max-width:100%;max-height:100%;object-fit:contain;" autoplay playsinline muted loop></video>';}
+      else{med.innerHTML='<img src="'+esc(s.mediaUrl)+'" alt="" style="max-width:100%;max-height:100%;object-fit:contain;">';}
+      var liked=svLiked.has(s.id);
+      document.getElementById("sv-li").textContent=liked?"favorite":"favorite_border";
+      document.getElementById("sv-like-btn").style.color=liked?"#f43f5e":"#fff";
+      document.getElementById("sv-lc").textContent=String(s.likes||0);
+      document.getElementById("sv-cmt").href="/comments?postId="+s.id;
+      clearTimeout(svTimer);if(!isV)svTimer=setTimeout(function(){svNav(1);},5000);
+    }
+    async function svToggleLike(){
+      if(!currentUser||!svList[svIdx])return;
+      var s=svList[svIdx];var was=svLiked.has(s.id);
+      if(was){svLiked.delete(s.id);}else{svLiked.add(s.id);}
+      s.likes=Math.max(0,(s.likes||0)+(was?-1:1));
+      document.getElementById("sv-li").textContent=was?"favorite_border":"favorite";
+      document.getElementById("sv-like-btn").style.color=was?"#fff":"#f43f5e";
+      document.getElementById("sv-lc").textContent=String(s.likes);
+      try{var lr=db.collection("posts").doc(s.id).collection("likes").doc(currentUser.uid);if(!was){await lr.set({userId:currentUser.uid,createdAt:firebase.firestore.FieldValue.serverTimestamp()});await db.collection("posts").doc(s.id).update({likes:firebase.firestore.FieldValue.increment(1)});}else{await lr.delete();await db.collection("posts").doc(s.id).update({likes:firebase.firestore.FieldValue.increment(-1)});}}catch(err){if(!was){svLiked.delete(s.id);}else{svLiked.add(s.id);}s.likes=Math.max(0,(s.likes||0)+(was?1:-1));document.getElementById("sv-li").textContent=was?"favorite":"favorite_border";document.getElementById("sv-lc").textContent=String(s.likes);}
+    }
+    document.addEventListener("keydown",function(e){if(document.getElementById("sv").style.display!=="flex")return;if(e.key==="Escape")closeSV();else if(e.key==="ArrowRight")svNav(1);else if(e.key==="ArrowLeft")svNav(-1);});
+  </script>
+
+  <!-- More menu (desktop sidebar) -->
+  <div id="more-menu" style="display:none;position:fixed;bottom:76px;left:12px;width:244px;background:#fff;border-radius:16px;box-shadow:0 4px 32px rgba(0,0,0,.14);border:1px solid #f1f5f9;z-index:200;overflow:hidden;">
+    <a href="/live" style="display:flex;align-items:center;gap:14px;padding:14px 16px;text-decoration:none;color:#1e293b;font-size:14px;font-weight:600;border-bottom:1px solid #f8fafc;">
+      <span class="material-symbols-outlined" style="font-size:22px;color:#64748b;">live_tv</span>Live
+    </a>
+    <a href="/profile-settings" style="display:flex;align-items:center;gap:14px;padding:14px 16px;text-decoration:none;color:#1e293b;font-size:14px;font-weight:600;border-bottom:1px solid #f8fafc;">
+      <span class="material-symbols-outlined" style="font-size:22px;color:#64748b;">settings</span>Settings
+    </a>
+    <a href="/dashboard" style="display:flex;align-items:center;gap:14px;padding:14px 16px;text-decoration:none;color:#1e293b;font-size:14px;font-weight:600;border-bottom:1px solid #f8fafc;">
+      <span class="material-symbols-outlined" style="font-size:22px;color:#64748b;">bar_chart</span>Dashboard
+    </a>
+    <button onclick="doSignOut()" style="display:flex;align-items:center;gap:14px;padding:14px 16px;color:#1e293b;font-size:14px;font-weight:600;border:none;background:transparent;cursor:pointer;width:100%;text-align:left;">
+      <span class="material-symbols-outlined" style="font-size:22px;color:#64748b;">logout</span>Sign out
+    </button>
+  </div>
+  <div id="more-menu-bg" style="display:none;position:fixed;inset:0;z-index:199;" onclick="closeMoreMenu()"></div>
+  <script>
+    function toggleMoreMenu(){var m=document.getElementById('more-menu'),b=document.getElementById('more-menu-bg'),show=m.style.display==='none';m.style.display=show?'block':'none';b.style.display=show?'block':'none';}
+    function closeMoreMenu(){document.getElementById('more-menu').style.display='none';document.getElementById('more-menu-bg').style.display='none';}
+    function doSignOut(){if(typeof firebase!=='undefined'&&firebase.apps&&firebase.apps.length){firebase.auth().signOut().then(function(){window.location.href='/login';}).catch(function(){window.location.href='/login';});}else{window.location.href='/login';}}
+  </script>
+</body>
+</html>
+
+
+
+

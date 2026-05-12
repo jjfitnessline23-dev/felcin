@@ -1,0 +1,330 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="Edit your Felcin profile." />
+  <meta name="theme-color" content="#0b7a75" />
+  <link rel="icon" href="/favicon.ico" />
+  <link rel="apple-touch-icon" href="/logo192.png" />
+  <link rel="manifest" href="/manifest.json" />
+  <title>Edit Profile — Felcin</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@600;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/felcin-redesign.css?v=20260507-v9" />
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0;}
+    body{display:grid;grid-template-columns:240px 1fr;min-height:100vh;}
+    .rail{position:sticky;top:0;height:100vh;display:flex;flex-direction:column;padding:24px 14px;gap:6px;overflow-y:auto;border-right:1px solid var(--border);border-radius:0 !important;}
+    .brand{display:flex;align-items:center;gap:10px;padding:8px 14px 24px;text-decoration:none;}
+    .brand img{width:32px;height:32px;}
+    nav{display:flex;flex-direction:column;gap:2px;flex:1;}
+    .main-area{max-width:680px;width:100%;padding:0 24px;margin:0 auto;}
+    .head{padding:20px 4px 16px;border:none !important;box-shadow:none !important;background:transparent !important;border-radius:0 !important;}
+    .head h1{font-size:22px;font-weight:700;}
+    .preview{display:flex;align-items:center;gap:20px;padding:20px;margin-bottom:24px;}
+    .preview-avatar{width:80px;height:80px;border-radius:50%;object-fit:cover;background:var(--bg);border:1px solid var(--border);flex-shrink:0;}
+    .preview-fallback{width:80px;height:80px;border-radius:50%;background:var(--bg);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:700;color:var(--muted);flex-shrink:0;}
+    .preview-info{flex:1;}
+    .preview-name{font-weight:600;font-size:16px;margin-bottom:4px;}
+    .preview-change{font-size:13px;color:var(--primary);font-weight:600;cursor:pointer;background:transparent;border:none;padding:0;}
+    .preview-change:hover{text-decoration:underline;}
+    .photo-focus{margin-top:14px;display:grid;gap:8px;max-width:280px;}
+    .photo-focus label{font-size:13px;font-weight:700;color:var(--text);}
+    .photo-focus input[type="range"]{width:100%;accent-color:var(--primary);}
+    .photo-focus-value{font-size:12px;color:var(--muted);}
+    .form{padding:24px;}
+    .group{margin-bottom:20px;}
+    .group label{display:block;margin-bottom:6px;font-size:14px;font-weight:600;}
+    .group input,.group textarea,.group select{width:100%;}
+    .group textarea{min-height:80px;resize:vertical;font-family:inherit;}
+    .group .hint{font-size:12px;color:var(--muted);margin-top:4px;}
+    .form-actions{display:flex;gap:12px;justify-content:space-between;align-items:center;margin-top:24px;padding-top:20px;border-top:1px solid var(--border-light);}
+    .form-actions button{padding:10px 24px !important;font-size:14px !important;}
+    .btn-danger{background:transparent !important;color:var(--err) !important;border:1px solid var(--err) !important;}
+    .btn-secondary{background:transparent !important;color:var(--text) !important;border:1px solid var(--border) !important;}
+    .status-msg{margin-top:12px;font-size:13px;font-weight:600;text-align:center;padding:10px;border-radius:var(--radius);}
+    .status-msg.success{background:rgba(0,168,107,0.08);color:var(--ok);border:1px solid rgba(0,168,107,0.3);}
+    .status-msg.error{background:rgba(204,58,58,0.08);color:var(--err);border:1px solid rgba(204,58,58,0.3);}
+    .section-title{font-size:16px;font-weight:700;margin:28px 0 12px;padding-top:20px;border-top:1px solid var(--border-light);}
+    .trust-note{margin-bottom:16px;padding:12px 14px;border-left:3px solid var(--primary);border-radius:10px;background:rgba(11,122,117,0.06);font-size:13px;line-height:1.65;color:var(--text);}
+    .trust-note a{color:var(--primary);font-weight:700;text-decoration:none;}
+    .trust-note a:hover{text-decoration:underline;}
+    .mobile-nav{display:none;position:fixed;left:0;right:0;bottom:0;z-index:80;padding:4px 0 calc(4px + env(safe-area-inset-bottom,0px));grid-template-columns:repeat(6,1fr);background:var(--bg-card);border-top:1px solid var(--border);}
+    .mobile-nav a{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:44px;text-decoration:none;color:var(--text);font-size:0;padding:6px;}
+    @media(max-width:860px){
+      body{display:block;padding-bottom:60px;}
+      .rail{display:none;}
+      .mobile-nav{display:grid;}
+      .main-area{padding:0 12px;max-width:100%;}
+      .head{padding:12px 4px;position:sticky;top:0;z-index:50;background:var(--bg) !important;}
+      .preview{flex-direction:column;text-align:center;gap:12px;}
+    }
+  </style>
+</head>
+<body>
+  <aside class="rail">
+    <a href="/" class="brand"><img src="/static/logo-nav.png" alt="Felcin" width="32" height="32">Felcin</a>
+    <nav>
+      <a href="/" class="nav-link">Home</a>
+      <a href="/explore" class="nav-link">Explore</a>
+      <a href="/reels" class="nav-link">Reels</a>
+      <a href="/stories" class="nav-link">Stories</a>
+      <a href="/live" class="nav-link">Live</a>
+      <a href="/private-chats" class="nav-link">Messages</a>
+      <a href="/notifications" class="nav-link">Notifications</a>
+      <a href="/creator" class="nav-link">Create</a>
+      <a href="/trust-center" class="nav-link">Trust Center</a>
+      <a href="/profile-settings" class="nav-link active">Settings</a>
+    </nav>
+  </aside>
+
+  <div class="main-area">
+    <div class="head"><h1>Edit Profile</h1></div>
+
+    <div class="preview" id="preview-section">
+      <div class="preview-fallback" id="avatar-fallback">?</div>
+      <img class="preview-avatar" id="avatar-img" hidden />
+      <div class="preview-info">
+        <div class="preview-name" id="preview-name">Loading...</div>
+        <button class="preview-change" id="change-photo-btn">Change profile photo</button>
+        <input type="file" id="avatar-input" accept="image/*" hidden />
+        <div class="photo-focus" id="photo-focus-wrap" hidden>
+          <label for="avatar-focus">Photo position</label>
+          <input type="range" id="avatar-focus" min="0" max="100" step="1" value="50" />
+          <div class="photo-focus-value" id="avatar-focus-label">Center the visible area on your face.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="form">
+      <div class="trust-note">Your account data is protected with layered safeguards. See <a href="/security">Security</a> and <a href="/privacy">Privacy Policy</a>, or <a href="/report?type=security">report a security issue</a>.</div>
+      <div class="group">
+        <label for="f-name">Display Name</label>
+        <input type="text" id="f-name" placeholder="Your display name" maxlength="60" />
+      </div>
+      <div class="group">
+        <label for="f-bio">Bio</label>
+        <textarea id="f-bio" placeholder="Tell people about yourself..." maxlength="300"></textarea>
+        <div class="hint"><span id="bio-count">0</span>/300</div>
+      </div>
+      <div class="group">
+        <label for="f-email">Email</label>
+        <input type="email" id="f-email" disabled style="opacity:0.6;" />
+        <div class="hint">Email cannot be changed here.</div>
+      </div>
+
+      <div id="status-msg"></div>
+
+      <div class="form-actions">
+        <button class="btn-secondary" type="button" onclick="window.location.href='/profile'">Cancel</button>
+        <button id="save-btn" type="button">Save Changes</button>
+      </div>
+
+      <div class="section-title">Account</div>
+      <div class="group">
+        <button class="btn-danger" id="logout-btn" type="button" style="width:100%;">Sign Out</button>
+      </div>
+    </div>
+  </div>
+
+  <nav class="mobile-nav">
+    <a href="/"><span class="material-symbols-outlined" style="font-size:26px;">home</span></a>
+    <a href="/explore"><span class="material-symbols-outlined" style="font-size:26px;">explore</span></a>
+    <a href="/reels"><span class="material-symbols-outlined" style="font-size:26px;">play_circle</span></a>
+    <a href="/creator"><span class="material-symbols-outlined" style="font-size:26px;">add_circle</span></a>
+    <a href="/notifications"><span class="material-symbols-outlined" style="font-size:26px;">notifications</span></a>
+    <a href="/profile"><span class="material-symbols-outlined" style="font-size:26px;">person</span></a>
+  </nav>
+
+  <script defer src="/static/felcin-common.js?v=20260507-v11"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-check-compat.js"></script>
+  <script>
+    const firebaseConfig={apiKey:"AIzaSyCKmWO04sVRhxZv3EuK_j_53yup9K_LEeE",authDomain:"felcin.firebaseapp.com",projectId:"felcin",storageBucket:"felcin.firebasestorage.app",messagingSenderId:"989891719192",appId:"1:989891719192:web:1266786c201c87f4c8536d"};
+    let db,currentUser;
+    let avatarFocusY=50;
+
+    document.addEventListener("DOMContentLoaded",async ()=>{
+      if(typeof firebase==="undefined")return;
+      firebase.initializeApp(firebaseConfig);
+      if(typeof initAppCheck==="function")initAppCheck();
+      db=firebase.firestore();
+
+      try{await firebase.auth().setPersistence(firebase.auth.Auth.Persistence.LOCAL);}catch(e){}
+
+      try{
+
+        if(typeof firebase.auth().authStateReady==="function"){
+
+          await firebase.auth().authStateReady();
+
+        }else{
+
+          await new Promise(resolve=>{const u=firebase.auth().onAuthStateChanged(()=>{u();resolve();});});
+
+        }
+
+      }catch(e){}
+
+      const user=firebase.auth().currentUser;
+
+      if(!user){window.location.href="/login";return;}
+
+      if(!canAccessApp(user)){await firebase.auth().signOut().catch(()=>{});showVerificationNoticeAndRedirect();return;}
+
+      currentUser=user;
+
+      loadProfile();
+
+      document.getElementById("change-photo-btn").addEventListener("click",()=>document.getElementById("avatar-input").click());
+      document.getElementById("avatar-input").addEventListener("change",handleAvatarUpload);
+      document.getElementById("avatar-focus").addEventListener("input",handleAvatarFocusInput);
+      document.getElementById("avatar-focus").addEventListener("change",persistAvatarFocus);
+      document.getElementById("save-btn").addEventListener("click",saveProfile);
+      document.getElementById("logout-btn").addEventListener("click",async()=>{
+        await firebase.auth().signOut();
+        window.location.href="/login";
+      });
+      document.getElementById("f-bio").addEventListener("input",()=>{
+        document.getElementById("bio-count").textContent=document.getElementById("f-bio").value.length;
+      });
+    });
+
+    async function loadProfile(){
+      try{
+        const uDoc=await db.collection("users").doc(currentUser.uid).get();
+        const pDoc=await db.collection("users").doc(currentUser.uid).collection("public").doc("profile").get();
+        const base=uDoc.exists?uDoc.data():{};
+        const pub=pDoc.exists?pDoc.data():{};
+        const name=pub.displayName||base.displayName||currentUser.displayName||"";
+        const bio=pub.bio||base.bio||"";
+        const photo=pub.photoURL||base.photoURL||currentUser.photoURL||"";
+        avatarFocusY=pub.photoFocusY??base.photoFocusY??50;
+
+        document.getElementById("f-name").value=name;
+        document.getElementById("f-bio").value=bio;
+        document.getElementById("bio-count").textContent=String(bio.length);
+        document.getElementById("f-email").value=currentUser.email||"";
+        document.getElementById("preview-name").textContent=name||"Your Name";
+
+        if(photo){
+          document.getElementById("avatar-img").src=photo;
+          document.getElementById("avatar-img").hidden=false;
+          document.getElementById("avatar-fallback").hidden=true;
+          updateAvatarFocusUi(true);
+          applyAvatarFocus(document.getElementById("avatar-img"),avatarFocusY);
+        }else{
+          const initial=(name||"?").charAt(0).toUpperCase();
+          document.getElementById("avatar-fallback").textContent=initial;
+          updateAvatarFocusUi(false);
+        }
+      }catch(e){console.error("Load profile error:",e);}
+    }
+
+    async function handleAvatarUpload(e){
+      const file=e.target.files[0];
+      if(!file)return;
+      if(!file.type.startsWith("image/")){showStatus("Please select an image file.","error");return;}
+      if(file.size>5*1024*1024){showStatus("Image must be under 5MB.","error");return;}
+
+      showStatus("Uploading photo...","");
+      try{
+        const token=await currentUser.getIdToken(true);
+        let resp,lastErr;
+        for(let attempt=0;attempt<3;attempt++){
+          try{
+            const fd=new FormData();
+            fd.append("avatar",file);
+            resp=await fetch("/upload-avatar.php",{method:"POST",headers:{"Authorization":"Bearer "+token},body:fd});
+            if(resp.ok)break;
+            lastErr=new Error("HTTP "+resp.status);
+          }catch(netErr){lastErr=netErr;}
+          if(attempt<2)await new Promise(r=>setTimeout(r,1000*(attempt+1)));
+        }
+        if(!resp||!resp.ok)throw lastErr||new Error("Upload failed");
+        const result=await resp.json();
+        const url=result.url||result.photoURL||"";
+        if(url){
+          avatarFocusY=35;
+          await db.collection("users").doc(currentUser.uid).set({photoURL:url,photoFocusY:avatarFocusY},{merge:true});
+          await db.collection("users").doc(currentUser.uid).collection("public").doc("profile").set({photoURL:url,photoFocusY:avatarFocusY},{merge:true});
+          document.getElementById("avatar-img").src=url;
+          document.getElementById("avatar-img").hidden=false;
+          document.getElementById("avatar-fallback").hidden=true;
+          updateAvatarFocusUi(true);
+          applyAvatarFocus(document.getElementById("avatar-img"),avatarFocusY);
+          showStatus("Profile photo updated!","success");
+        }
+      }catch(err){
+        console.error("Avatar upload error:",err);
+        showStatus("Failed to upload photo. Try again.","error");
+      }
+    }
+
+    async function saveProfile(){
+      const name=document.getElementById("f-name").value.trim();
+      const bio=document.getElementById("f-bio").value.trim();
+      if(!name){showStatus("Display name is required.","error");return;}
+
+      const btn=document.getElementById("save-btn");
+      btn.disabled=true;btn.textContent="Saving...";
+      try{
+        await db.collection("users").doc(currentUser.uid).update({displayName:name,bio:bio});
+        await db.collection("users").doc(currentUser.uid).collection("public").doc("profile").set({displayName:name,bio:bio},{merge:true});
+        await currentUser.updateProfile({displayName:name});
+        document.getElementById("preview-name").textContent=name;
+        showStatus("Profile updated successfully!","success");
+      }catch(err){
+        console.error("Save profile error:",err);
+        showStatus("Failed to save. Please try again.","error");
+      }
+      btn.disabled=false;btn.textContent="Save Changes";
+    }
+
+    function updateAvatarFocusUi(hasPhoto){
+      document.getElementById("photo-focus-wrap").hidden=!hasPhoto;
+      document.getElementById("avatar-focus").value=String(normalizeAvatarFocusY(avatarFocusY));
+      updateAvatarFocusLabel();
+    }
+
+    function updateAvatarFocusLabel(){
+      const value=normalizeAvatarFocusY(avatarFocusY);
+      let tone="Centered";
+      if(value<35)tone="Higher";
+      else if(value>65)tone="Lower";
+      document.getElementById("avatar-focus-label").textContent=tone+" crop: move until your face sits in the middle of the circle.";
+    }
+
+    function handleAvatarFocusInput(e){
+      avatarFocusY=normalizeAvatarFocusY(e.target.value);
+      applyAvatarFocus(document.getElementById("avatar-img"),avatarFocusY);
+      updateAvatarFocusLabel();
+    }
+
+    async function persistAvatarFocus(){
+      if(document.getElementById("avatar-img").hidden||!currentUser)return;
+      try{
+        await db.collection("users").doc(currentUser.uid).set({photoFocusY:avatarFocusY},{merge:true});
+        await db.collection("users").doc(currentUser.uid).collection("public").doc("profile").set({photoFocusY:avatarFocusY},{merge:true});
+        showStatus("Photo framing saved.","success");
+      }catch(err){
+        console.error("Avatar focus save error:",err);
+        showStatus("Could not save photo framing.","error");
+      }
+    }
+
+    function showStatus(msg,type){
+      const el=document.getElementById("status-msg");
+      if(!msg){el.innerHTML="";return;}
+      el.className="status-msg"+(type?" "+type:"");
+      el.textContent=msg;
+    }
+  </script>
+</body>
+</html>
+
