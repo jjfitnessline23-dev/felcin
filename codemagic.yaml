@@ -7,7 +7,7 @@ workflows:
       app_store_connect: Codemagic
     environment:
       groups:
-        - app_store_creds
+        - ios
       xcode: latest
       node: latest
       cocoapods: default
