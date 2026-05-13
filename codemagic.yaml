@@ -15,7 +15,6 @@ workflows:
         BUNDLE_ID: com.felcin.app
         XCODE_WORKSPACE: ios/App/App.xcworkspace
         XCODE_SCHEME: App
-        TEAM_ID: UWSVWR4VTX
     scripts:
       - name: Install npm dependencies
         script: npm install
@@ -37,52 +36,23 @@ workflows:
           cd ios/App
           pod install
 
-      - name: Create distribution certificate
+      - name: Create certificate and profile
         script: |
           app-store-connect create-certificate \
             --type IOS_DISTRIBUTION \
-            --issuer-id "$APP_STORE_CONNECT_ISSUER_ID" \
-            --key-id "$APP_STORE_CONNECT_KEY_IDENTIFIER" \
-            --private-key @env:APP_STORE_CONNECT_PRIVATE_KEY \
             --save
+          app-store-connect fetch-signing-files "$BUNDLE_ID" \
+            --type IOS_APP_STORE \
+            --create
           keychain add-certificates
+          sed -i '' 's/CODE_SIGN_STYLE = Automatic;/CODE_SIGN_STYLE = Manual;/g' ios/App/App.xcodeproj/project.pbxproj
+          xcode-project use-profiles
 
       - name: Build IPA
         script: |
-          echo "$APP_STORE_CONNECT_PRIVATE_KEY" > /tmp/AuthKey.p8
-
-          xcodebuild archive \
-            -workspace "$XCODE_WORKSPACE" \
-            -scheme "$XCODE_SCHEME" \
-            -configuration Release \
-            -archivePath /tmp/App.xcarchive \
-            -allowProvisioningUpdates \
-            -authenticationKeyPath /tmp/AuthKey.p8 \
-            -authenticationKeyID "$APP_STORE_CONNECT_KEY_IDENTIFIER" \
-            -authenticationKeyIssuerID "$APP_STORE_CONNECT_ISSUER_ID"
-
-          cat > /tmp/ExportOptions.plist << 'PLIST'
-          <?xml version="1.0" encoding="UTF-8"?>
-          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-          <plist version="1.0">
-          <dict>
-            <key>method</key>
-            <string>app-store</string>
-            <key>teamID</key>
-            <string>UWSVWR4VTX</string>
-          </dict>
-          </plist>
-          PLIST
-
-          mkdir -p build/ios/ipa
-          xcodebuild -exportArchive \
-            -archivePath /tmp/App.xcarchive \
-            -exportPath build/ios/ipa \
-            -exportOptionsPlist /tmp/ExportOptions.plist \
-            -allowProvisioningUpdates \
-            -authenticationKeyPath /tmp/AuthKey.p8 \
-            -authenticationKeyID "$APP_STORE_CONNECT_KEY_IDENTIFIER" \
-            -authenticationKeyIssuerID "$APP_STORE_CONNECT_ISSUER_ID"
+          xcode-project build-ipa \
+            --workspace "$XCODE_WORKSPACE" \
+            --scheme "$XCODE_SCHEME"
 
     artifacts:
       - build/ios/ipa/*.ipa
