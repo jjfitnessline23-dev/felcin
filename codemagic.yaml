@@ -94,9 +94,33 @@ workflows:
 
       - name: Build IPA
         script: |
-          xcode-project build-ipa \
-            --workspace "$XCODE_WORKSPACE" \
-            --scheme "$XCODE_SCHEME"
+          UUID=$(security cms -D -i /tmp/profile.mobileprovision 2>/dev/null \
+            | grep -A1 "<key>UUID</key>" | grep "<string>" \
+            | sed 's/.*<string>\(.*\)<\/string>.*/\1/')
+          echo "Using profile UUID: $UUID"
+
+          ARCHIVE_PATH="build/ios/xcarchive/App.xcarchive"
+          IPA_PATH="build/ios/ipa"
+          mkdir -p "$IPA_PATH"
+
+          echo "=== Archiving ==="
+          xcodebuild \
+            -workspace "$XCODE_WORKSPACE" \
+            -scheme "$XCODE_SCHEME" \
+            -archivePath "$ARCHIVE_PATH" \
+            archive \
+            COMPILER_INDEX_STORE_ENABLE=NO \
+            DEVELOPMENT_TEAM=UWSVWR4VTX \
+            CODE_SIGN_STYLE=Manual \
+            CODE_SIGN_IDENTITY="Apple Distribution" \
+            PROVISIONING_PROFILE_SPECIFIER="$UUID"
+
+          echo "=== Exporting IPA ==="
+          xcodebuild \
+            -exportArchive \
+            -archivePath "$ARCHIVE_PATH" \
+            -exportPath "$IPA_PATH" \
+            -exportOptionsPlist /Users/builder/export_options.plist
 
     artifacts:
       - build/ios/ipa/*.ipa
