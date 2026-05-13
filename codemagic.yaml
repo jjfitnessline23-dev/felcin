@@ -16,7 +16,6 @@ workflows:
         BUNDLE_ID: com.felcin.app
         XCODE_WORKSPACE: ios/App/App.xcworkspace
         XCODE_SCHEME: App
-        APP_STORE_APPLE_ID: "6763660775"
     scripts:
       - name: Install npm dependencies
         script: npm install
@@ -53,6 +52,8 @@ workflows:
 
     publishing:
       app_store_connect:
-        api_key: Codemagic
+        api_key: $APP_STORE_CONNECT_PRIVATE_KEY
+        key_id: $APP_STORE_CONNECT_KEY_IDENTIFIER
+        issuer_id: $APP_STORE_CONNECT_ISSUER_ID
         submit_to_testflight: true
         submit_to_app_store: false
