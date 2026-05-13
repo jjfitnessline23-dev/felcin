@@ -36,8 +36,24 @@ workflows:
           cd ios/App
           pod install
 
+      - name: Register bundle ID and create provisioning profile
+        script: |
+          app-store-connect create-certificate --type IOS_DISTRIBUTION
+          app-store-connect list-devices
+          app-store-connect create-profile \
+            --bundle-id "$BUNDLE_ID" \
+            --type IOS_APP_STORE \
+            --certificate-type IOS_DISTRIBUTION \
+            --profile-name "Felcin App Store"
+
       - name: Set up code signing
         script: xcode-project use-profiles
+
+      - name: Set bundle ID in Xcode project
+        script: |
+          xcode-project set-build-version \
+            --project ios/App/App.xcodeproj \
+            --build-number $(($(app-store-connect get-latest-testflight-build-number "$APP_STORE_APPLE_ID") + 1))
 
       - name: Build IPA
         script: |
