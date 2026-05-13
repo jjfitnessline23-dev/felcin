@@ -38,10 +38,17 @@ workflows:
 
       - name: Set up signing
         script: |
-          set -e
           app-store-connect fetch-signing-files "$BUNDLE_ID" \
             --type IOS_APP_STORE \
             --create
+
+          echo "=== p12 files ==="
+          find ~ -name "*.p12" 2>/dev/null | head -20
+          echo "=== cer files ==="
+          find ~ -name "*.cer" 2>/dev/null | head -20
+          echo "=== mobileprovision files ==="
+          find ~ -name "*.mobileprovision" 2>/dev/null | head -20
+
           keychain add-certificates
           xcode-project use-profiles
 
