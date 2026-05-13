@@ -3,6 +3,8 @@ workflows:
     name: Felcin iOS — App Store
     max_build_duration: 120
     instance_type: mac_mini_m2
+    integrations:
+      app_store_connect: Codemagic
     environment:
       xcode: latest
       node: latest
@@ -22,7 +24,7 @@ workflows:
       - name: Install Capacitor CLI
         script: npm install -g @capacitor/cli
 
-      - name: Add iOS platform (if not present)
+      - name: Add iOS platform
         script: |
           if [ ! -d "ios" ]; then
             npx cap add ios
@@ -36,24 +38,8 @@ workflows:
           cd ios/App
           pod install
 
-      - name: Register bundle ID and create provisioning profile
-        script: |
-          app-store-connect create-certificate --type IOS_DISTRIBUTION
-          app-store-connect list-devices
-          app-store-connect create-profile \
-            --bundle-id "$BUNDLE_ID" \
-            --type IOS_APP_STORE \
-            --certificate-type IOS_DISTRIBUTION \
-            --profile-name "Felcin App Store"
-
       - name: Set up code signing
         script: xcode-project use-profiles
-
-      - name: Set bundle ID in Xcode project
-        script: |
-          xcode-project set-build-version \
-            --project ios/App/App.xcodeproj \
-            --build-number $(($(app-store-connect get-latest-testflight-build-number "$APP_STORE_APPLE_ID") + 1))
 
       - name: Build IPA
         script: |
@@ -67,8 +53,6 @@ workflows:
 
     publishing:
       app_store_connect:
-        api_key: $APP_STORE_CONNECT_PRIVATE_KEY
-        key_id: $APP_STORE_CONNECT_KEY_IDENTIFIER
-        issuer_id: $APP_STORE_CONNECT_ISSUER_ID
+        api_key: Codemagic
         submit_to_testflight: true
         submit_to_app_store: false
