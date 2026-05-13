@@ -31,6 +31,16 @@ workflows:
       - name: Capacitor sync
         script: npx cap sync ios
 
+      - name: Set app icon
+        script: |
+          ICON_SRC="ios-icons"
+          ICON_DEST="ios/App/App/Assets.xcassets/AppIcon.appiconset"
+          echo "Copying custom app icons..."
+          cp "$ICON_SRC"/*.png "$ICON_DEST/"
+          cp "$ICON_SRC/Contents.json" "$ICON_DEST/Contents.json"
+          echo "Icons installed:"
+          ls "$ICON_DEST"
+
       - name: Set build number
         script: |
           /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $BUILD_NUMBER" ios/App/App/Info.plist
