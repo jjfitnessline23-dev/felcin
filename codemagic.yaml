@@ -111,7 +111,9 @@ workflows:
             -scheme "$XCODE_SCHEME" \
             -archivePath "$ARCHIVE_PATH" \
             archive \
-            COMPILER_INDEX_STORE_ENABLE=NO
+            COMPILER_INDEX_STORE_ENABLE=NO \
+            DEVELOPMENT_TEAM=UWSVWR4VTX \
+            CODE_SIGN_IDENTITY="Apple Distribution"
 
           echo "=== Exporting IPA ==="
           xcodebuild \
