@@ -79,23 +79,17 @@ workflows:
           echo "Patched"
 
           echo "=== Generating export options ==="
-          cat > /Users/builder/export_options.plist << EOF
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <key>method</key>
-    <string>app-store</string>
-    <key>teamID</key>
-    <string>UWSVWR4VTX</string>
-    <key>provisioningProfiles</key>
-    <dict>
-        <key>com.felcin.app</key>
-        <string>$UUID</string>
-    </dict>
-</dict>
-</plist>
-EOF
+          {
+            echo '<?xml version="1.0" encoding="UTF-8"?>'
+            echo '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">'
+            echo '<plist version="1.0"><dict>'
+            echo '  <key>method</key><string>app-store</string>'
+            echo '  <key>teamID</key><string>UWSVWR4VTX</string>'
+            echo '  <key>provisioningProfiles</key><dict>'
+            echo "    <key>com.felcin.app</key><string>$UUID</string>"
+            echo '  </dict>'
+            echo '</dict></plist>'
+          } > /Users/builder/export_options.plist
           echo "Done"
 
       - name: Build IPA
