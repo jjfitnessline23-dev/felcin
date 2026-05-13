@@ -54,6 +54,24 @@ workflows:
 
       - name: Build IPA
         script: |
+          # Find the provisioning profile installed by xcode-project use-profiles
+          PROFILE=$(find "$HOME/Library/MobileDevice/Provisioning Profiles" -name "*.mobileprovision" 2>/dev/null | head -1)
+          if [ -z "$PROFILE" ]; then
+            PROFILE=$(find ~ -name "*.mobileprovision" 2>/dev/null | head -1)
+          fi
+
+          if [ -n "$PROFILE" ]; then
+            echo "Found profile: $PROFILE"
+            UUID=$(security cms -D -i "$PROFILE" 2>/dev/null | grep -A1 "<key>UUID</key>" | grep "<string>" | sed 's/.*<string>\(.*\)<\/string>.*/\1/')
+            echo "Profile UUID: $UUID"
+            PBXPROJ="ios/App/App.xcodeproj/project.pbxproj"
+            sed -i '' "s/PROVISIONING_PROFILE_SPECIFIER = \"[^\"]*\";/PROVISIONING_PROFILE_SPECIFIER = \"$UUID\";/g" "$PBXPROJ"
+            echo "Patched pbxproj with profile UUID"
+          else
+            echo "ERROR: No provisioning profile found — cannot build"
+            exit 1
+          fi
+
           xcode-project build-ipa \
             --workspace "$XCODE_WORKSPACE" \
             --scheme "$XCODE_SCHEME"
