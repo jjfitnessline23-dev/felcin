@@ -11,9 +11,6 @@ workflows:
       xcode: latest
       node: latest
       cocoapods: default
-      ios_signing:
-        distribution_type: app_store
-        bundle_identifier: com.felcin.app
       vars:
         BUNDLE_ID: com.felcin.app
         XCODE_WORKSPACE: ios/App/App.xcworkspace
@@ -39,8 +36,22 @@ workflows:
           cd ios/App
           pod install
 
-      - name: Set up code signing
-        script: xcode-project use-profiles
+      - name: Create certificate and profile
+        script: |
+          app-store-connect create-certificate \
+            --type IOS_DISTRIBUTION \
+            --issuer-id "$APP_STORE_CONNECT_ISSUER_ID" \
+            --key-id "$APP_STORE_CONNECT_KEY_IDENTIFIER" \
+            --private-key @env:APP_STORE_CONNECT_PRIVATE_KEY \
+            --save
+          app-store-connect fetch-signing-files "$BUNDLE_ID" \
+            --type IOS_APP_STORE \
+            --issuer-id "$APP_STORE_CONNECT_ISSUER_ID" \
+            --key-id "$APP_STORE_CONNECT_KEY_IDENTIFIER" \
+            --private-key @env:APP_STORE_CONNECT_PRIVATE_KEY \
+            --create
+          keychain add-certificates
+          xcode-project use-profiles
 
       - name: Build IPA
         script: |
