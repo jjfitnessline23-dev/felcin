@@ -41,6 +41,29 @@ workflows:
           echo "Icons installed:"
           ls "$ICON_DEST"
 
+      - name: Patch WebView dark background
+        script: |
+          cat > ios/App/App/ViewController.swift << 'SWIFTEOF'
+          import UIKit
+          import Capacitor
+
+          class ViewController: CAPBridgeViewController {
+              override func viewDidLoad() {
+                  super.viewDidLoad()
+                  self.view.backgroundColor = UIColor.black
+                  self.webView?.isOpaque = false
+                  self.webView?.backgroundColor = UIColor.black
+                  self.webView?.scrollView.backgroundColor = UIColor.black
+              }
+              override func capacitorDidLoad() {
+                  self.webView?.isOpaque = false
+                  self.webView?.backgroundColor = UIColor.black
+                  self.webView?.scrollView.backgroundColor = UIColor.black
+              }
+          }
+          SWIFTEOF
+          echo "ViewController.swift patched for dark WebView background"
+
       - name: Set build number
         script: |
           /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $BUILD_NUMBER" ios/App/App/Info.plist
