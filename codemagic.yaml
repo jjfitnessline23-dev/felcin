@@ -69,7 +69,22 @@ workflows:
           /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $BUILD_NUMBER" ios/App/App/Info.plist
           /usr/libexec/PlistBuddy -c "Add :ITSAppUsesNonExemptEncryption bool false" ios/App/App/Info.plist 2>/dev/null || \
           /usr/libexec/PlistBuddy -c "Set :ITSAppUsesNonExemptEncryption false" ios/App/App/Info.plist
+
+          # Camera / media permissions — required for file picker "Take Photo or Video" on iOS
+          /usr/libexec/PlistBuddy -c "Add :NSCameraUsageDescription string 'Felcin needs access to your camera to take photos and videos for posts and stories.'" ios/App/App/Info.plist 2>/dev/null || \
+          /usr/libexec/PlistBuddy -c "Set :NSCameraUsageDescription 'Felcin needs access to your camera to take photos and videos for posts and stories.'" ios/App/App/Info.plist
+
+          /usr/libexec/PlistBuddy -c "Add :NSMicrophoneUsageDescription string 'Felcin needs access to your microphone to record audio for videos.'" ios/App/App/Info.plist 2>/dev/null || \
+          /usr/libexec/PlistBuddy -c "Set :NSMicrophoneUsageDescription 'Felcin needs access to your microphone to record audio for videos.'" ios/App/App/Info.plist
+
+          /usr/libexec/PlistBuddy -c "Add :NSPhotoLibraryUsageDescription string 'Felcin needs access to your photo library to share photos and videos.'" ios/App/App/Info.plist 2>/dev/null || \
+          /usr/libexec/PlistBuddy -c "Set :NSPhotoLibraryUsageDescription 'Felcin needs access to your photo library to share photos and videos.'" ios/App/App/Info.plist
+
+          /usr/libexec/PlistBuddy -c "Add :NSPhotoLibraryAddUsageDescription string 'Felcin needs permission to save photos and videos to your library.'" ios/App/App/Info.plist 2>/dev/null || \
+          /usr/libexec/PlistBuddy -c "Set :NSPhotoLibraryAddUsageDescription 'Felcin needs permission to save photos and videos to your library.'" ios/App/App/Info.plist
+
           echo "Build number set to: $BUILD_NUMBER"
+          echo "Permissions patched into Info.plist"
 
       - name: Install CocoaPods
         script: |
