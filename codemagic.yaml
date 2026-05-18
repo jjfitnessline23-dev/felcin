@@ -70,6 +70,14 @@
           SWIFTEOF
           echo "ViewController.swift patched"
 
+      - name: Restrict to iPhone only
+        script: |
+          PBXPROJ="ios/App/App.xcodeproj/project.pbxproj"
+          perl -i -pe 's/TARGETED_DEVICE_FAMILY = "1,2";/TARGETED_DEVICE_FAMILY = 1;/g' "$PBXPROJ"
+          perl -i -pe 's/TARGETED_DEVICE_FAMILY = 1,2;/TARGETED_DEVICE_FAMILY = 1;/g' "$PBXPROJ"
+          echo "TARGETED_DEVICE_FAMILY set to iPhone only:"
+          grep "TARGETED_DEVICE_FAMILY" "$PBXPROJ"
+
       - name: Set build number
         script: |
           /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $BUILD_NUMBER" ios/App/App/Info.plist
