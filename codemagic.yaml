@@ -1,4 +1,4 @@
-workflows:
+﻿workflows:
   ios-app-store:
     name: Felcin iOS — App Store
     max_build_duration: 120
@@ -41,11 +41,13 @@ workflows:
           echo "Icons installed:"
           ls "$ICON_DEST"
 
-      - name: Patch WebView dark background
+      - name: Patch WebView dark background and camera permissions
         script: |
-          cat > ios/App/App/ViewController.swift << 'SWIFTEOF'
+          SWIFT_FILE="ios/App/App/ViewController.swift"
+          cat > "$SWIFT_FILE" << SWIFTEOF
           import UIKit
           import Capacitor
+          import WebKit
 
           class ViewController: CAPBridgeViewController {
               override func viewDidLoad() {
@@ -60,9 +62,13 @@ workflows:
                   self.webView?.backgroundColor = UIColor.black
                   self.webView?.scrollView.backgroundColor = UIColor.black
               }
+              @available(iOS 15.0, *)
+              override func webView(_ webView: WKWebView, requestMediaCapturePermissionFor origin: WKSecurityOrigin, initiatedByFrame frame: WKFrameInfo, type: WKMediaCaptureType, decisionHandler: @escaping (WKPermissionDecision) -> Void) {
+                  decisionHandler(.grant)
+              }
           }
           SWIFTEOF
-          echo "ViewController.swift patched for dark WebView background"
+          echo "ViewController.swift patched"
 
       - name: Set build number
         script: |
@@ -70,7 +76,6 @@ workflows:
           /usr/libexec/PlistBuddy -c "Add :ITSAppUsesNonExemptEncryption bool false" ios/App/App/Info.plist 2>/dev/null || \
           /usr/libexec/PlistBuddy -c "Set :ITSAppUsesNonExemptEncryption false" ios/App/App/Info.plist
 
-          # Camera / media permissions — required for file picker "Take Photo or Video" on iOS
           /usr/libexec/PlistBuddy -c "Add :NSCameraUsageDescription string 'Felcin needs access to your camera to take photos and videos for posts and stories.'" ios/App/App/Info.plist 2>/dev/null || \
           /usr/libexec/PlistBuddy -c "Set :NSCameraUsageDescription 'Felcin needs access to your camera to take photos and videos for posts and stories.'" ios/App/App/Info.plist
 
