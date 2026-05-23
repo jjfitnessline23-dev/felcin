@@ -3,7 +3,7 @@
   "appName": "Felcin",
   "webDir": "pages",
   "server": {
-    "url": "https://felcin.com",
+    "url": "https://www.felcin.com",
     "cleartext": false
   },
   "ios": {
