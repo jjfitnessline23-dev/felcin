@@ -33,10 +33,17 @@
 
       - name: Add GoogleService-Info.plist
         script: |
-          # Decode plist from Codemagic env var
-          echo "$GOOGLE_SERVICE_INFO_PLIST" | base64 --decode > ios/App/App/GoogleService-Info.plist
-          echo "Plist installed. Verifying keys:"
-          grep -E "REVERSED_CLIENT_ID|BUNDLE_ID" ios/App/App/GoogleService-Info.plist | head -4
+          # Decode plist from Codemagic env var (use -D for macOS base64)
+          echo "$GOOGLE_SERVICE_INFO_PLIST" | base64 -D > ios/App/App/GoogleService-Info.plist
+          echo "Plist file size: $(wc -c < ios/App/App/GoogleService-Info.plist) bytes"
+
+          # Validate it's a real plist — fail fast if not
+          if ! /usr/libexec/PlistBuddy -c "Print :BUNDLE_ID" ios/App/App/GoogleService-Info.plist 2>/dev/null; then
+            echo "ERROR: GoogleService-Info.plist is invalid. First bytes:"
+            xxd ios/App/App/GoogleService-Info.plist | head -3
+            exit 1
+          fi
+          echo "Plist valid. BUNDLE_ID: $(/usr/libexec/PlistBuddy -c 'Print :BUNDLE_ID' ios/App/App/GoogleService-Info.plist)"
 
           # Add plist to Xcode project so it's bundled into the app
           gem install xcodeproj --quiet 2>/dev/null || true
