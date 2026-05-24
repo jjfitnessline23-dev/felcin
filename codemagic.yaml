@@ -170,6 +170,13 @@
           echo "Build number set to: $BUILD_NUMBER"
           echo "Permissions patched into Info.plist"
 
+      - name: Use CapacitorFirebaseAuthentication Google subspec
+        script: |
+          PODFILE="ios/App/Podfile"
+          sed -i '' "s|pod 'CapacitorFirebaseAuthentication'|pod 'CapacitorFirebaseAuthentication/Google'|g" "$PODFILE"
+          echo "Podfile patched:"
+          grep "CapacitorFirebaseAuthentication" "$PODFILE"
+
       - name: Install CocoaPods
         script: |
           cd ios/App
