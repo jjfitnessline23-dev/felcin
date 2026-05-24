@@ -173,9 +173,11 @@
       - name: Use CapacitorFirebaseAuthentication Google subspec
         script: |
           PODFILE="ios/App/Podfile"
-          sed -i '' "s|pod 'CapacitorFirebaseAuthentication'|pod 'CapacitorFirebaseAuthentication/Google'|g" "$PODFILE"
-          echo "Podfile patched:"
-          grep "CapacitorFirebaseAuthentication" "$PODFILE"
+          echo "=== Before patch ==="
+          grep "CapacitorFirebaseAuthentication" "$PODFILE" || echo "(no match)"
+          perl -i -pe "s|pod ['\"]CapacitorFirebaseAuthentication['\"]|pod 'CapacitorFirebaseAuthentication/Google'|g" "$PODFILE"
+          echo "=== After patch ==="
+          grep "CapacitorFirebaseAuthentication" "$PODFILE" || echo "(still no match — check Podfile format)"
 
       - name: Install CocoaPods
         script: |
