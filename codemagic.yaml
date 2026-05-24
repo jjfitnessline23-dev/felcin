@@ -170,14 +170,14 @@
           echo "Build number set to: $BUILD_NUMBER"
           echo "Permissions patched into Info.plist"
 
-      - name: Use CapacitorFirebaseAuthentication Google subspec
+      - name: Enable Google subspec in CapacitorFirebaseAuthentication
         script: |
-          PODFILE="ios/App/Podfile"
+          PODSPEC="node_modules/@capacitor-firebase/authentication/CapacitorFirebaseAuthentication.podspec"
           echo "=== Before patch ==="
-          grep "CapacitorFirebaseAuthentication" "$PODFILE" || echo "(no match)"
-          perl -i -pe "s|pod ['\"]CapacitorFirebaseAuthentication['\"]|pod 'CapacitorFirebaseAuthentication/Google'|g" "$PODFILE"
+          grep "default_subspec" "$PODSPEC"
+          perl -i -pe "s/default_subspec = 'Lite'/default_subspec = 'Google'/" "$PODSPEC"
           echo "=== After patch ==="
-          grep "CapacitorFirebaseAuthentication" "$PODFILE" || echo "(still no match — check Podfile format)"
+          grep "default_subspec" "$PODSPEC"
 
       - name: Install CocoaPods
         script: |
