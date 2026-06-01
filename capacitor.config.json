@@ -1,7 +1,11 @@
 {
   "appId": "com.felcin.app",
   "appName": "Felcin",
-  "webDir": "../felcin-next/out",
+  "webDir": "pages",
+  "server": {
+    "url": "https://www.felcin.com",
+    "cleartext": false
+  },
   "ios": {
     "scheme": "Felcin",
     "backgroundColor": "#000000",
