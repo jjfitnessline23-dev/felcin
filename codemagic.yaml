@@ -172,13 +172,12 @@
 
       - name: Enable Google subspec in CapacitorFirebaseAuthentication
         script: |
-          PODFILE="ios/App/Podfile"
-          echo "=== Podfile before patch ==="
-          grep "CapacitorFirebaseAuthentication" "$PODFILE" || true
-          # Use Google subspec (Apple Sign In is in base source files, no separate subspec needed)
-          perl -i -pe "s|pod 'CapacitorFirebaseAuthentication'(.*)|pod 'CapacitorFirebaseAuthentication/Google'\$1|" "$PODFILE"
-          echo "=== Podfile after patch ==="
-          grep "CapacitorFirebaseAuthentication" "$PODFILE"
+          PODSPEC="node_modules/@capacitor-firebase/authentication/CapacitorFirebaseAuthentication.podspec"
+          echo "=== Podspec before patch ==="
+          grep "default_subspec" "$PODSPEC"
+          perl -i -pe "s/default_subspec = 'Lite'/default_subspec = 'Google'/" "$PODSPEC"
+          echo "=== Podspec after patch ==="
+          grep "default_subspec" "$PODSPEC"
 
       - name: Add Sign in with Apple entitlement
         script: |
