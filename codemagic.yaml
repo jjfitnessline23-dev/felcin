@@ -1,6 +1,6 @@
 ﻿workflows:
   ios-app-store:
-    name: Felcin iOS — App Store
+    name: Felcin iOS - App Store
     max_build_duration: 120
     instance_type: mac_mini_m2
     integrations:
@@ -170,14 +170,43 @@
           echo "Build number set to: $BUILD_NUMBER"
           echo "Permissions patched into Info.plist"
 
-      - name: Enable Google subspec in CapacitorFirebaseAuthentication
+      - name: Enable Google + Apple subspecs in CapacitorFirebaseAuthentication
         script: |
-          PODSPEC="node_modules/@capacitor-firebase/authentication/CapacitorFirebaseAuthentication.podspec"
-          echo "=== Before patch ==="
-          grep "default_subspec" "$PODSPEC"
-          perl -i -pe "s/default_subspec = 'Lite'/default_subspec = 'Google'/" "$PODSPEC"
-          echo "=== After patch ==="
-          grep "default_subspec" "$PODSPEC"
+          PODFILE="ios/App/Podfile"
+          echo "=== Podfile before patch ==="
+          grep "CapacitorFirebaseAuthentication" "$PODFILE" || true
+          # Replace the default pod declaration with explicit Google + Apple subspecs
+          perl -i -pe "
+            s|pod 'CapacitorFirebaseAuthentication'(.*)|pod 'CapacitorFirebaseAuthentication/Google'\$1\n  pod 'CapacitorFirebaseAuthentication/Apple'\$1|
+          " "$PODFILE"
+          echo "=== Podfile after patch ==="
+          grep "CapacitorFirebaseAuthentication" "$PODFILE"
+
+      - name: Add Sign in with Apple entitlement
+        script: |
+          ENTITLEMENTS="ios/App/App/App.entitlements"
+          cat > "$ENTITLEMENTS" << 'ENTEOF'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+              <key>com.apple.developer.applesignin</key>
+              <array>
+                  <string>Default</string>
+              </array>
+          </dict>
+          </plist>
+          ENTEOF
+          echo "App.entitlements written"
+
+          # Register it in the pbxproj build settings
+          PBXPROJ="ios/App/App.xcodeproj/project.pbxproj"
+          if ! grep -q "CODE_SIGN_ENTITLEMENTS" "$PBXPROJ"; then
+            perl -i -pe 's/(DEVELOPMENT_TEAM = UWSVWR4VTX;)/CODE_SIGN_ENTITLEMENTS = App\/App.entitlements;\n\t\t\t\t\1/g' "$PBXPROJ"
+            echo "CODE_SIGN_ENTITLEMENTS added to pbxproj"
+          else
+            echo "CODE_SIGN_ENTITLEMENTS already present"
+          fi
 
       - name: Install CocoaPods
         script: |
@@ -215,9 +244,11 @@
           mkdir -p "$PROFILE_DIR"
           echo "$PROVISIONING_PROFILE" | base64 --decode > /tmp/profile.mobileprovision
           echo "Profile file size: $(wc -c < /tmp/profile.mobileprovision) bytes"
-          UUID=$(security cms -D -i /tmp/profile.mobileprovision 2>/dev/null \
-            | grep -A1 "<key>UUID</key>" | grep "<string>" \
-            | sed 's/.*<string>\(.*\)<\/string>.*/\1/')
+          openssl smime -inform DER -verify -noverify -in /tmp/profile.mobileprovision -out /tmp/decoded_profile.plist 2>/dev/null
+          UUID=$(/usr/libexec/PlistBuddy -c 'Print :UUID' /tmp/decoded_profile.plist 2>/dev/null)
+          if [ -z "$UUID" ]; then
+            UUID=$(strings /tmp/profile.mobileprovision | grep -E '^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$' | head -1)
+          fi
           echo "Profile UUID: $UUID"
           cp /tmp/profile.mobileprovision "$PROFILE_DIR/$UUID.mobileprovision"
           echo "Profile installed"
@@ -245,9 +276,11 @@
 
       - name: Build IPA
         script: |
-          UUID=$(security cms -D -i /tmp/profile.mobileprovision 2>/dev/null \
-            | grep -A1 "<key>UUID</key>" | grep "<string>" \
-            | sed 's/.*<string>\(.*\)<\/string>.*/\1/')
+          openssl smime -inform DER -verify -noverify -in /tmp/profile.mobileprovision -out /tmp/decoded_profile.plist 2>/dev/null
+          UUID=$(/usr/libexec/PlistBuddy -c 'Print :UUID' /tmp/decoded_profile.plist 2>/dev/null)
+          if [ -z "$UUID" ]; then
+            UUID=$(strings /tmp/profile.mobileprovision | grep -E '^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$' | head -1)
+          fi
           echo "Using profile UUID: $UUID"
 
           ARCHIVE_PATH="build/ios/xcarchive/App.xcarchive"
