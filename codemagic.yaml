@@ -170,15 +170,13 @@
           echo "Build number set to: $BUILD_NUMBER"
           echo "Permissions patched into Info.plist"
 
-      - name: Enable Google + Apple subspecs in CapacitorFirebaseAuthentication
+      - name: Enable Google subspec in CapacitorFirebaseAuthentication
         script: |
           PODFILE="ios/App/Podfile"
           echo "=== Podfile before patch ==="
           grep "CapacitorFirebaseAuthentication" "$PODFILE" || true
-          # Replace the default pod declaration with explicit Google + Apple subspecs
-          perl -i -pe "
-            s|pod 'CapacitorFirebaseAuthentication'(.*)|pod 'CapacitorFirebaseAuthentication/Google'\$1\n  pod 'CapacitorFirebaseAuthentication/Apple'\$1|
-          " "$PODFILE"
+          # Use Google subspec (Apple Sign In is in base source files, no separate subspec needed)
+          perl -i -pe "s|pod 'CapacitorFirebaseAuthentication'(.*)|pod 'CapacitorFirebaseAuthentication/Google'\$1|" "$PODFILE"
           echo "=== Podfile after patch ==="
           grep "CapacitorFirebaseAuthentication" "$PODFILE"
 
