@@ -196,14 +196,17 @@
           ENTEOF
           echo "App.entitlements written"
 
-          # Register it in the pbxproj build settings
+          # Force CODE_SIGN_ENTITLEMENTS to our file — replace any existing value (including empty "")
           PBXPROJ="ios/App/App.xcodeproj/project.pbxproj"
-          if ! grep -q "CODE_SIGN_ENTITLEMENTS" "$PBXPROJ"; then
+          if grep -q "CODE_SIGN_ENTITLEMENTS" "$PBXPROJ"; then
+            perl -i -pe 's|CODE_SIGN_ENTITLEMENTS = [^;]*;|CODE_SIGN_ENTITLEMENTS = App/App.entitlements;|g' "$PBXPROJ"
+            echo "CODE_SIGN_ENTITLEMENTS updated to App/App.entitlements"
+          else
             perl -i -pe 's/(DEVELOPMENT_TEAM = UWSVWR4VTX;)/CODE_SIGN_ENTITLEMENTS = App\/App.entitlements;\n\t\t\t\t\1/g' "$PBXPROJ"
             echo "CODE_SIGN_ENTITLEMENTS added to pbxproj"
-          else
-            echo "CODE_SIGN_ENTITLEMENTS already present"
           fi
+          echo "Verifying:"
+          grep "CODE_SIGN_ENTITLEMENTS" "$PBXPROJ"
 
       - name: Install CocoaPods
         script: |
