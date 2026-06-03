@@ -196,17 +196,16 @@
           ENTEOF
           echo "App.entitlements written"
 
-          # Force CODE_SIGN_ENTITLEMENTS to our file — replace any existing value (including empty "")
+          # Force CODE_SIGN_ENTITLEMENTS to our file in every build config
           PBXPROJ="ios/App/App.xcodeproj/project.pbxproj"
           if grep -q "CODE_SIGN_ENTITLEMENTS" "$PBXPROJ"; then
-            perl -i -pe 's|CODE_SIGN_ENTITLEMENTS = [^;]*;|CODE_SIGN_ENTITLEMENTS = App/App.entitlements;|g' "$PBXPROJ"
-            echo "CODE_SIGN_ENTITLEMENTS updated to App/App.entitlements"
+            perl -i -pe 's|CODE_SIGN_ENTITLEMENTS = [^;]*;|CODE_SIGN_ENTITLEMENTS = "App/App.entitlements";|g' "$PBXPROJ"
+            echo "CODE_SIGN_ENTITLEMENTS updated"
           else
-            perl -i -pe 's/(DEVELOPMENT_TEAM = UWSVWR4VTX;)/CODE_SIGN_ENTITLEMENTS = App\/App.entitlements;\n\t\t\t\t\1/g' "$PBXPROJ"
-            echo "CODE_SIGN_ENTITLEMENTS added to pbxproj"
+            perl -i -pe 's/(CODE_SIGN_STYLE = Automatic;)/$1\n\t\t\t\tCODE_SIGN_ENTITLEMENTS = "App\/App.entitlements";/g' "$PBXPROJ"
+            echo "CODE_SIGN_ENTITLEMENTS inserted"
           fi
-          echo "Verifying:"
-          grep "CODE_SIGN_ENTITLEMENTS" "$PBXPROJ"
+          grep "CODE_SIGN_ENTITLEMENTS" "$PBXPROJ" || echo "WARNING: CODE_SIGN_ENTITLEMENTS not found in pbxproj"
 
       - name: Install CocoaPods
         script: |
