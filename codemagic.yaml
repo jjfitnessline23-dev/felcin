@@ -191,6 +191,11 @@
               <array>
                   <string>Default</string>
               </array>
+              <key>com.apple.developer.associated-domains</key>
+              <array>
+                  <string>applinks:felcin.com</string>
+                  <string>applinks:www.felcin.com</string>
+              </array>
           </dict>
           </plist>
           ENTEOF
@@ -317,3 +322,62 @@
     artifacts:
       - build/ios/ipa/*.ipa
       - /tmp/xcodebuild_logs/*.log
+
+  android-google-play:
+    name: Felcin Android - Google Play
+    max_build_duration: 120
+    instance_type: linux_x2
+    environment:
+      groups:
+        - android
+      java: 17
+      node: latest
+      vars:
+        PACKAGE_NAME: com.felcin.app
+    scripts:
+      - name: Install npm dependencies
+        script: npm install --legacy-peer-deps
+
+      - name: Install Capacitor CLI
+        script: npm install -g @capacitor/cli
+
+      - name: Add Android platform
+        script: |
+          if [ ! -d "android" ]; then
+            npx cap add android
+          fi
+
+      - name: Add google-services.json
+        script: |
+          echo "$GOOGLE_SERVICES_JSON_BASE64" | base64 --decode > android/app/google-services.json
+          echo "google-services.json written"
+
+      - name: Capacitor sync
+        script: npx cap sync android
+
+      - name: Set version code
+        script: |
+          BUILD_NO=${BUILD_NUMBER:-1}
+          sed -i "s/versionCode [0-9]*/versionCode $BUILD_NO/" android/app/build.gradle
+          echo "versionCode set to $BUILD_NO"
+
+      - name: Build release AAB
+        script: |
+          cd android
+          chmod +x gradlew
+          # Override keystore path to use the env var decoded file
+          echo "$KEYSTORE_BASE64" | base64 --decode > /tmp/felcin-release.keystore
+          ./gradlew bundleRelease \
+            -Pandroid.injected.signing.store.file=/tmp/felcin-release.keystore \
+            -Pandroid.injected.signing.store.password="$KEYSTORE_PASSWORD" \
+            -Pandroid.injected.signing.key.alias="$KEY_ALIAS" \
+            -Pandroid.injected.signing.key.password="$KEY_PASSWORD"
+
+    artifacts:
+      - android/app/build/outputs/bundle/release/app-release.aab
+
+    publishing:
+      google_play:
+        credentials: $GOOGLE_PLAY_SERVICE_ACCOUNT_JSON
+        track: internal
+        submit_as_draft: true
