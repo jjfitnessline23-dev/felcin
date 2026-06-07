@@ -299,7 +299,9 @@
             archive \
             COMPILER_INDEX_STORE_ENABLE=NO \
             DEVELOPMENT_TEAM=UWSVWR4VTX \
-            CODE_SIGN_IDENTITY="Apple Distribution"
+            CODE_SIGN_IDENTITY="Apple Distribution" \
+            MARKETING_VERSION=1.1 \
+            CURRENT_PROJECT_VERSION=$BUILD_NUMBER
 
           echo "=== Exporting IPA ==="
           xcodebuild \
