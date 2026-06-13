@@ -371,17 +371,40 @@
       - name: Capacitor sync
         script: npx cap sync android
 
-      - name: Set version code
+      - name: Set app name and version
         script: |
           BUILD_NO=${BUILD_NUMBER:-1}
           sed -i "s/versionCode [0-9]*/versionCode $BUILD_NO/" android/app/build.gradle
-          echo "versionCode set to $BUILD_NO"
+          sed -i "s/versionName \"[^\"]*\"/versionName \"1.3\"/" android/app/build.gradle
+          echo "versionCode=$BUILD_NO versionName=1.3"
+
+      - name: Replace app icon with Felcin ghost logo
+        script: |
+          ICON_SRC="android-icons"
+          if [ -d "$ICON_SRC" ]; then
+            cp "$ICON_SRC"/mipmap-mdpi/*.png    android/app/src/main/res/mipmap-mdpi/
+            cp "$ICON_SRC"/mipmap-hdpi/*.png    android/app/src/main/res/mipmap-hdpi/
+            cp "$ICON_SRC"/mipmap-xhdpi/*.png   android/app/src/main/res/mipmap-xhdpi/
+            cp "$ICON_SRC"/mipmap-xxhdpi/*.png  android/app/src/main/res/mipmap-xxhdpi/
+            cp "$ICON_SRC"/mipmap-xxxhdpi/*.png android/app/src/main/res/mipmap-xxxhdpi/
+            echo "Icons installed from android-icons folder"
+          else
+            echo "No android-icons folder found — using icons already in android project"
+          fi
+
+      - name: Print signing fingerprint for assetlinks.json
+        script: |
+          echo "$KEYSTORE_BASE64" | base64 --decode > /tmp/felcin-release.keystore
+          echo "=== SHA256 fingerprint (paste into assetlinks.json) ==="
+          keytool -list -v \
+            -keystore /tmp/felcin-release.keystore \
+            -alias "$KEY_ALIAS" \
+            -storepass "$KEYSTORE_PASSWORD" 2>&1 | grep "SHA256:"
 
       - name: Build release AAB
         script: |
           cd android
           chmod +x gradlew
-          # Override keystore path to use the env var decoded file
           echo "$KEYSTORE_BASE64" | base64 --decode > /tmp/felcin-release.keystore
           ./gradlew bundleRelease \
             -Pandroid.injected.signing.store.file=/tmp/felcin-release.keystore \
@@ -391,6 +414,12 @@
 
     artifacts:
       - android/app/build/outputs/bundle/release/app-release.aab
+
+    publishing:
+      google_play:
+        credentials: $GOOGLE_PLAY_SERVICE_ACCOUNT_JSON
+        track: internal
+        submit_as_draft: true
 
     publishing:
       google_play:
