@@ -420,9 +420,3 @@
         credentials: $GOOGLE_PLAY_SERVICE_ACCOUNT_JSON
         track: internal
         submit_as_draft: true
-
-    publishing:
-      google_play:
-        credentials: $GOOGLE_PLAY_SERVICE_ACCOUNT_JSON
-        track: internal
-        submit_as_draft: true
