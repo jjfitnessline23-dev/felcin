@@ -375,8 +375,8 @@
         script: |
           BUILD_NO=${BUILD_NUMBER:-1}
           sed -i "s/versionCode [0-9]*/versionCode $BUILD_NO/" android/app/build.gradle
-          sed -i "s/versionName \"[^\"]*\"/versionName \"1.3\"/" android/app/build.gradle
-          echo "versionCode=$BUILD_NO versionName=1.3"
+          sed -i "s/versionName \"[^\"]*\"/versionName \"1.7\"/" android/app/build.gradle
+          echo "versionCode=$BUILD_NO versionName=1.7"
 
       - name: Replace app icon with Felcin ghost logo
         script: |
