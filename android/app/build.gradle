@@ -1,5 +1,9 @@
 apply plugin: 'com.android.application'
 
+def localProps = new Properties()
+def localPropsFile = rootProject.file("local.properties")
+if (localPropsFile.exists()) { localPropsFile.withInputStream { localProps.load(it) } }
+
 android {
     namespace "app.felcin.social"
     compileSdk rootProject.ext.compileSdkVersion
@@ -7,8 +11,8 @@ android {
         applicationId "app.felcin.social"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 107
-        versionName "1.7"
+        versionCode 111
+        versionName "2.1"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -18,10 +22,10 @@ android {
     }
     signingConfigs {
         release {
-            storeFile file("C:/Users/johnj/felcin/felcin.jks")
-            storePassword "FelcinApp2026!"
-            keyAlias "felcin"
-            keyPassword "FelcinApp2026!"
+            storeFile file(localProps.getProperty('KEYSTORE_FILE', 'C:/Users/johnj/felcin/felcin.jks'))
+            storePassword localProps.getProperty('KEYSTORE_PASSWORD', '')
+            keyAlias localProps.getProperty('KEY_ALIAS', 'felcin')
+            keyPassword localProps.getProperty('KEY_PASSWORD', '')
         }
     }
     buildTypes {
