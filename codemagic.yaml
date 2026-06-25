@@ -365,8 +365,15 @@
 
       - name: Add Android platform
         script: |
-          if [ ! -d "android" ]; then
+          if [ ! -f "android/gradlew" ]; then
+            echo "gradlew missing — regenerating android platform"
+            [ -f "android/app/build.gradle" ] && cp android/app/build.gradle /tmp/custom-build.gradle
+            rm -rf android
             npx cap add android
+            [ -f "/tmp/custom-build.gradle" ] && cp /tmp/custom-build.gradle android/app/build.gradle
+            echo "Android platform regenerated"
+          else
+            echo "android/gradlew exists — skipping cap add"
           fi
 
       - name: Add google-services.json
