@@ -437,4 +437,8 @@
     artifacts:
       - android/app/build/outputs/bundle/release/app-release.aab
 
-    # Publishing disabled — download AAB from Artifacts tab and upload manually to Play Console
+    publishing:
+      google_play:
+        credentials: $GOOGLE_PLAY_SERVICE_ACCOUNT_CREDENTIALS
+        track: internal
+        submit_as_draft: true
