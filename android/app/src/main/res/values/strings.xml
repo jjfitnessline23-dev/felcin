@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Felcin</string>
+    <string name="title_activity_main">Felcin</string>
+    <string name="package_name">app.felcin.social</string>
+    <string name="custom_url_scheme">app.felcin.social</string>
+</resources>
