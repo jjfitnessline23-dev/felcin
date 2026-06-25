@@ -346,7 +346,7 @@
     environment:
       groups:
         - android
-      java: 17
+      java: 21
       node: latest
       vars:
         PACKAGE_NAME: com.felcin.app
