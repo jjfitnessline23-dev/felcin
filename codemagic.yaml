@@ -421,7 +421,11 @@
 
       - name: Build release AAB
         script: |
+          echo "=== android/ contents before cd ==="
+          ls -la android/ || echo "android/ directory missing!"
           cd android
+          echo "=== inside android/ ==="
+          ls -la
           chmod +x gradlew
           echo "$KEYSTORE_BASE64" | base64 --decode > /tmp/felcin-release.keystore
           ./gradlew bundleRelease \
