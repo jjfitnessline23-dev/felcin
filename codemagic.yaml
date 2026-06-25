@@ -365,8 +365,15 @@
 
       - name: Add Android platform
         script: |
-          if [ ! -d "android" ]; then
+          if [ ! -f "android/gradlew" ]; then
+            echo "gradlew missing — regenerating android platform"
+            [ -f "android/app/build.gradle" ] && cp android/app/build.gradle /tmp/custom-build.gradle
+            rm -rf android
             npx cap add android
+            [ -f "/tmp/custom-build.gradle" ] && cp /tmp/custom-build.gradle android/app/build.gradle
+            echo "Android platform regenerated"
+          else
+            echo "android/gradlew exists — skipping cap add"
           fi
 
       - name: Add google-services.json
@@ -401,11 +408,16 @@
       - name: Print signing fingerprint for assetlinks.json
         script: |
           echo "$KEYSTORE_BASE64" | base64 --decode > /tmp/felcin-release.keystore
+          echo "=== Full keytool output (for debugging) ==="
+          keytool -list -v \
+            -keystore /tmp/felcin-release.keystore \
+            -alias "$KEY_ALIAS" \
+            -storepass "$KEYSTORE_PASSWORD" 2>&1 || true
           echo "=== SHA256 fingerprint (paste into assetlinks.json) ==="
           keytool -list -v \
             -keystore /tmp/felcin-release.keystore \
             -alias "$KEY_ALIAS" \
-            -storepass "$KEYSTORE_PASSWORD" 2>&1 | grep "SHA256:"
+            -storepass "$KEYSTORE_PASSWORD" 2>&1 | grep "SHA256:" || echo "WARNING: SHA256 not found — check KEYSTORE_BASE64 / KEY_ALIAS / KEYSTORE_PASSWORD env vars"
 
       - name: Build release AAB
         script: |
