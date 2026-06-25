@@ -342,7 +342,7 @@
   android-google-play:
     name: Felcin Android - Google Play
     max_build_duration: 120
-    instance_type: linux_x2
+    instance_type: linux_x1
     environment:
       groups:
         - android
@@ -356,6 +356,12 @@
 
       - name: Install Capacitor CLI
         script: npm install -g @capacitor/cli
+
+      - name: Patch GoogleAuthProviderHandler to clear cached account on sign-out
+        script: |
+          FILE="node_modules/@capacitor-firebase/authentication/android/src/main/java/io/capawesome/capacitorjs/plugins/firebase/authentication/handlers/GoogleAuthProviderHandler.java"
+          sed -i 's/public void signOut() {/public void signOut() {\n        if (mGoogleSignInClient != null) { mGoogleSignInClient.signOut(); }/' "$FILE"
+          echo "Patch applied"
 
       - name: Add Android platform
         script: |
@@ -375,8 +381,8 @@
         script: |
           BUILD_NO=${BUILD_NUMBER:-1}
           sed -i "s/versionCode [0-9]*/versionCode $BUILD_NO/" android/app/build.gradle
-          sed -i "s/versionName \"[^\"]*\"/versionName \"1.7\"/" android/app/build.gradle
-          echo "versionCode=$BUILD_NO versionName=1.7"
+          sed -i "s/versionName \"[^\"]*\"/versionName \"2.0\"/" android/app/build.gradle
+          echo "versionCode=$BUILD_NO versionName=2.0"
 
       - name: Replace app icon with Felcin ghost logo
         script: |
