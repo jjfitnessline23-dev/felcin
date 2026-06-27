@@ -56,6 +56,50 @@
           ]
         }
       }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:989891719192:android:602a053611b27a68c8536d",
+        "android_client_info": {
+          "package_name": "com.felcin.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "989891719192-okqbccb1q03u6vktl6gtj4c8r7d8b8k0.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.felcin.app",
+            "certificate_hash": "c085bed30d14166b9d69c0e3daff7ecb09d4c8cd"
+          }
+        },
+        {
+          "client_id": "989891719192-1phpgjoadt2fulgld0l2nf4lt9fj5jlu.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCaLnyh6Rqvgwm6xUB9Fu03bRlCwwkc7WY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "989891719192-1phpgjoadt2fulgld0l2nf4lt9fj5jlu.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "989891719192-cpea43fbeh7ajpmjup1g67f2nj0j5i8f.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.felcin.app"
+              }
+            }
+          ]
+        }
+      }
     }
   ],
   "configuration_version": "1"
