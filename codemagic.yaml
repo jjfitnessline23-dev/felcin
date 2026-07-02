@@ -343,6 +343,8 @@
     name: Felcin Android - Google Play
     max_build_duration: 120
     instance_type: mac_mini_m1
+    integrations:
+      google_play: Google Play
     environment:
       groups:
         - android
@@ -439,6 +441,5 @@
 
     publishing:
       google_play:
-        credentials: $GOOGLE_PLAY_SERVICE_ACCOUNT_JSON
         track: internal
         submit_as_draft: false
