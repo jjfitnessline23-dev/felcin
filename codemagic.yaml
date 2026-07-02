@@ -343,8 +343,6 @@
     name: Felcin Android - Google Play
     max_build_duration: 120
     instance_type: mac_mini_m1
-    integrations:
-      google_play: Google Play
     environment:
       groups:
         - android
@@ -353,6 +351,11 @@
       vars:
         PACKAGE_NAME: app.felcin.social
     scripts:
+      - name: Write Google Play credentials
+        script: |
+          echo "$GOOGLE_PLAY_SERVICE_ACCOUNT_JSON" > /tmp/gp-credentials.json
+          echo "Credentials written: $(wc -c < /tmp/gp-credentials.json) bytes"
+
       - name: Install npm dependencies
         script: npm install --legacy-peer-deps
 
@@ -441,5 +444,6 @@
 
     publishing:
       google_play:
+        credentials: /tmp/gp-credentials.json
         track: internal
         submit_as_draft: false
