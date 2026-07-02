@@ -386,7 +386,7 @@
 
       - name: Set app name and version
         script: |
-          BUILD_NO=${BUILD_NUMBER:-1}
+          BUILD_NO=$(( ${BUILD_NUMBER:-1} + 200 ))
           sed -i "s/versionCode [0-9]*/versionCode $BUILD_NO/" android/app/build.gradle
           sed -i "s/versionName \"[^\"]*\"/versionName \"2.0\"/" android/app/build.gradle
           echo "versionCode=$BUILD_NO versionName=2.0"
