@@ -353,8 +353,73 @@
     scripts:
       - name: Write Google Play credentials
         script: |
-          echo "$GOOGLE_PLAY_SERVICE_ACCOUNT_JSON" > /tmp/gp-credentials.json
-          echo "Credentials written: $(wc -c < /tmp/gp-credentials.json) bytes"
+          set -e
+
+          # ── Step 1: resolve the raw JSON from whichever var is populated ──────
+          RAW=""
+
+          for VAR_NAME in GOOGLE_PLAY_SERVICE_ACCOUNT_JSON GOOGLE_PLAY_SERVICE_ACCOUNT_CREDENTIALS; do
+            VAR_VALUE="${!VAR_NAME}"
+            if [ -z "$VAR_VALUE" ]; then
+              echo "  [$VAR_NAME] is empty — skipping"
+              continue
+            fi
+            echo "  [$VAR_NAME] is set (${#VAR_VALUE} chars)"
+
+            # Detect base64: real JSON always starts with '{'; anything else is base64
+            FIRST_CHAR="${VAR_VALUE:0:1}"
+            if [ "$FIRST_CHAR" = "{" ]; then
+              echo "  [$VAR_NAME] looks like raw JSON (starts with '{')"
+              RAW="$VAR_VALUE"
+            else
+              echo "  [$VAR_NAME] does not start with '{' — attempting base64 decode"
+              DECODED=$(echo "$VAR_VALUE" | base64 --decode 2>/dev/null) || true
+              if [ "${DECODED:0:1}" = "{" ]; then
+                echo "  [$VAR_NAME] base64 decode succeeded — using decoded value"
+                RAW="$DECODED"
+              else
+                echo "  [$VAR_NAME] base64 decode did not produce JSON — skipping"
+              fi
+            fi
+
+            [ -n "$RAW" ] && break
+          done
+
+          # ── Step 2: fail loudly if nothing resolved ──────────────────────────
+          if [ -z "$RAW" ]; then
+            echo "FATAL: Could not resolve valid JSON from GOOGLE_PLAY_SERVICE_ACCOUNT_JSON or GOOGLE_PLAY_SERVICE_ACCOUNT_CREDENTIALS"
+            echo "  Both variables are either empty or do not contain valid JSON (raw or base64)."
+            echo "  Check the 'android' environment group in Codemagic settings."
+            exit 1
+          fi
+
+          # ── Step 3: write the file ────────────────────────────────────────────
+          echo "$RAW" > /tmp/gp-credentials.json
+          FILE_SIZE=$(wc -c < /tmp/gp-credentials.json)
+          echo "Credentials file written: $FILE_SIZE bytes"
+
+          # ── Step 4: validate JSON and print key fields ────────────────────────
+          if command -v python3 &>/dev/null; then
+            python3 - <<'PYEOF'
+          import json, sys
+          try:
+              with open('/tmp/gp-credentials.json') as f:
+                  data = json.load(f)
+              print(f"  JSON is valid")
+              print(f"  type:         {data.get('type', '(missing)')}")
+              print(f"  project_id:   {data.get('project_id', '(missing)')}")
+              print(f"  client_email: {data.get('client_email', '(missing)')}")
+              if data.get('type') != 'service_account':
+                  print("  WARNING: 'type' is not 'service_account' — this credential will be rejected by Google Play")
+              if '(missing)' in (data.get('client_email','(missing)'), data.get('project_id','(missing)')):
+                  print("  WARNING: key fields are missing — credential file may be corrupt or wrong format")
+          except json.JSONDecodeError as e:
+              print(f"  FATAL: /tmp/gp-credentials.json is not valid JSON: {e}")
+              sys.exit(1)
+          PYEOF
+          else
+            echo "  python3 not available — skipping JSON validation (file was written)"
+          fi
 
       - name: Install npm dependencies
         script: npm install --legacy-peer-deps
@@ -439,11 +504,60 @@
             -Pandroid.injected.signing.key.alias="$KEY_ALIAS" \
             -Pandroid.injected.signing.key.password="$KEY_PASSWORD"
 
+      - name: Publish to Google Play
+        script: |
+          set -e
+          echo "=== Installing Google API client ==="
+          pip3 install --quiet google-auth google-api-python-client
+
+          python3 - <<'PYEOF'
+          import json, sys
+
+          from google.oauth2 import service_account
+          from googleapiclient.discovery import build
+          from googleapiclient.http import MediaFileUpload
+
+          PACKAGE   = 'app.felcin.social'
+          AAB       = 'android/app/build/outputs/bundle/release/app-release.aab'
+          CREDS     = '/tmp/gp-credentials.json'
+          TRACK     = 'internal'
+
+          print(f'Loading credentials from {CREDS}...')
+          creds = service_account.Credentials.from_service_account_file(
+              CREDS,
+              scopes=['https://www.googleapis.com/auth/androidpublisher']
+          )
+          print(f'Service account: {creds.service_account_email}')
+
+          service = build('androidpublisher', 'v3', credentials=creds)
+
+          print(f'Creating edit for {PACKAGE}...')
+          edit = service.edits().insert(packageName=PACKAGE, body={}).execute()
+          edit_id = edit['id']
+          print(f'Edit ID: {edit_id}')
+
+          print(f'Uploading {AAB}...')
+          media = MediaFileUpload(AAB, mimetype='application/octet-stream', resumable=True)
+          bundle = service.edits().bundles().upload(
+              packageName=PACKAGE,
+              editId=edit_id,
+              media_body=media
+          ).execute()
+          version_code = bundle['versionCode']
+          print(f'Uploaded AAB — versionCode: {version_code}')
+
+          print(f'Assigning to {TRACK} track...')
+          service.edits().tracks().update(
+              packageName=PACKAGE,
+              editId=edit_id,
+              track=TRACK,
+              body={'releases': [{'versionCodes': [version_code], 'status': 'completed'}]}
+          ).execute()
+
+          print('Committing edit...')
+          service.edits().commit(packageName=PACKAGE, editId=edit_id).execute()
+          print(f'SUCCESS: Published versionCode {version_code} to {TRACK} track!')
+          PYEOF
+
     artifacts:
       - android/app/build/outputs/bundle/release/app-release.aab
-
-    publishing:
-      google_play:
-        credentials: /tmp/gp-credentials.json
-        track: internal
-        submit_as_draft: false
