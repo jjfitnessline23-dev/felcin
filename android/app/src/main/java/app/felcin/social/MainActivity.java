@@ -1,4 +1,4 @@
-package com.felcin.app;
+package app.felcin.social;
 
 import android.os.Bundle;
 import android.os.Message;
