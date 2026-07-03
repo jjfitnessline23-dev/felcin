@@ -446,11 +446,6 @@
             echo "android/gradlew exists — skipping cap add"
           fi
 
-      - name: Add google-services.json
-        script: |
-          echo "$GOOGLE_SERVICES_JSON_BASE64" | base64 --decode > android/app/google-services.json
-          echo "google-services.json written"
-
       - name: Capacitor sync
         script: npx cap sync android
 
