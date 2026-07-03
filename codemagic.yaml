@@ -457,15 +457,9 @@
       - name: Set app name and version
         script: |
           BUILD_NO=$(( ${BUILD_NUMBER:-1} + 200 ))
-          python3 -c "
-import re, sys
-path = 'android/app/build.gradle'
-content = open(path).read()
-content = re.sub(r'versionCode \d+', 'versionCode $BUILD_NO', content)
-content = re.sub(r'versionName \"[^\"]*\"', 'versionName \"2.0\"', content)
-open(path, 'w').write(content)
-print('versionCode=$BUILD_NO versionName=2.0')
-"
+          sed -i '' "s/versionCode [0-9]*/versionCode $BUILD_NO/" android/app/build.gradle
+          sed -i '' "s/versionName \"[^\"]*\"/versionName \"2.0\"/" android/app/build.gradle
+          echo "versionCode=$BUILD_NO versionName=2.0"
 
       - name: Replace app icon with Felcin ghost logo
         script: |
