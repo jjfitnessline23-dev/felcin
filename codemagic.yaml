@@ -520,7 +520,7 @@
           PACKAGE   = 'app.felcin.social'
           AAB       = 'android/app/build/outputs/bundle/release/app-release.aab'
           CREDS     = '/tmp/gp-credentials.json'
-          TRACK     = 'internal'
+          TRACK     = 'production'
 
           print(f'Loading credentials from {CREDS}...')
           creds = service_account.Credentials.from_service_account_file(
