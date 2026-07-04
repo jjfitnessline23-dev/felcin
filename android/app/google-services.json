@@ -30,6 +30,14 @@
           }
         },
         {
+          "client_id": "989891719192-gc9sirm074qodrcdon9n41nhqbmbnk63.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "app.felcin.social",
+            "certificate_hash": "8d1c871d5ae014c3ba2d57bb99c805faca255166"
+          }
+        },
+        {
           "client_id": "989891719192-1phpgjoadt2fulgld0l2nf4lt9fj5jlu.apps.googleusercontent.com",
           "client_type": 3
         }
