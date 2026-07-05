@@ -383,8 +383,9 @@
             echo '<?xml version="1.0" encoding="UTF-8"?>'
             echo '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">'
             echo '<plist version="1.0"><dict>'
-            echo '  <key>method</key><string>app-store</string>'
+            echo '  <key>method</key><string>app-store-connect</string>'
             echo '  <key>teamID</key><string>UWSVWR4VTX</string>'
+            echo '  <key>signingStyle</key><string>manual</string>'
             echo '  <key>provisioningProfiles</key><dict>'
             echo "    <key>com.felcin.app</key><string>$UUID</string>"
             echo '  </dict>'
