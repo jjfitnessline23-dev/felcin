@@ -415,12 +415,13 @@
             MARKETING_VERSION=1.3 \
             CURRENT_PROJECT_VERSION=$BUILD_NUMBER
 
-          echo "=== Exporting IPA ==="
-          xcodebuild \
-            -exportArchive \
-            -archivePath "$ARCHIVE_PATH" \
-            -exportPath "$IPA_PATH" \
-            -exportOptionsPlist /Users/builder/export_options.plist
+          echo "=== Packaging IPA from archive (skip xcodebuild exportArchive) ==="
+          mkdir -p "$IPA_PATH/Payload"
+          cp -r "$ARCHIVE_PATH/Products/Applications/App.app" "$IPA_PATH/Payload/"
+          cd "$IPA_PATH"
+          zip -qr App.ipa Payload/
+          cd -
+          echo "IPA created: $(ls -lh $IPA_PATH/App.ipa)"
 
       - name: Upload to TestFlight
         script: |
