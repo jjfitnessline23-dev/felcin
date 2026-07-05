@@ -34,7 +34,7 @@
                   if f == 'route.ts':
                       p = os.path.join(root, f)
                       c = open(p).read()
-                      nc = c.replace("'force-dynamic'", "'force-static'")
+                      nc = c.replace("'force-dynamic'", "'force-static'").replace('"force-dynamic"', '"force-static"')
                       if nc != c:
                           open(p, 'w').write(nc)
                           print('  API patched: ' + p)
@@ -546,7 +546,7 @@
                   if f == 'route.ts':
                       p = os.path.join(root, f)
                       c = open(p).read()
-                      nc = c.replace("'force-dynamic'", "'force-static'")
+                      nc = c.replace("'force-dynamic'", "'force-static'").replace('"force-dynamic"', '"force-static"')
                       if nc != c:
                           open(p, 'w').write(nc)
                           print('  API patched: ' + p)
