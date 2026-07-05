@@ -18,6 +18,10 @@
     scripts:
       - name: Build felcin-next static web bundle
         script: |
+          set -e
+          REPO_DIR="$(pwd)"
+          echo "=== Repo dir: $REPO_DIR ==="
+
           echo "=== Cloning felcin-next ==="
           git clone https://github.com/jjfitnessline23-dev/felcin-next.git /tmp/felcin-next
           cd /tmp/felcin-next
@@ -28,7 +32,7 @@
           echo "=== Patching API routes: force-dynamic → force-static ==="
           find app/api -name "route.ts" -exec perl -i -pe "s/'force-dynamic'/'force-static'/g" {} \;
 
-          echo "=== Patching dynamic route pages ==="
+          echo "=== Patching dynamic route pages with Suspense ==="
           for ENTRY in \
             "app/(protected)/challenges/[id]/page.tsx:id" \
             "app/(protected)/ghost/[id]/page.tsx:id" \
@@ -41,9 +45,29 @@
             "app/(protected)/training-sessions/[sessionId]/page.tsx:sessionId"; do
             PAGE="${ENTRY%%:*}"
             KEY="${ENTRY##*:}"
-            printf 'import PageClient from "./PageClient";\n\nexport function generateStaticParams() { return [{ %s: "_" }]; }\nexport const dynamicParams = false;\n\nexport default function Page() { return <PageClient />; }\n' "$KEY" > "$PAGE"
+            printf 'import { Suspense } from "react";\nimport PageClient from "./PageClient";\n\nexport function generateStaticParams() { return [{ %s: "_" }]; }\nexport const dynamicParams = false;\n\nexport default function Page() { return <Suspense fallback={null}><PageClient /></Suspense>; }\n' "$KEY" > "$PAGE"
             echo "  Patched: $PAGE"
           done
+
+          echo "=== Wrapping useSearchParams pages with Suspense ==="
+          for PAGE in \
+            "app/(protected)/advertise/page.tsx" \
+            "app/(protected)/badges/page.tsx" \
+            "app/(protected)/comments/page.tsx" \
+            "app/(protected)/creator/page.tsx" \
+            "app/(protected)/earnings/page.tsx" \
+            "app/(protected)/explore/page.tsx" \
+            "app/(protected)/page.tsx" \
+            "app/(protected)/private-chats/page.tsx" \
+            "app/(protected)/training-sessions/page.tsx"; do
+            DIR="${PAGE%/*}"
+            mv "$PAGE" "${DIR}/page.content.tsx"
+            printf 'import { Suspense } from "react";\nimport PageContent from "./page.content";\nexport default function Page() { return <Suspense fallback={null}><PageContent /></Suspense>; }\n' > "$PAGE"
+            echo "  Wrapped: $PAGE"
+          done
+
+          echo "=== Replacing user-profile page (removes unsupported server generateMetadata) ==="
+          printf 'import { Suspense } from "react";\nimport PageClient from "./PageClient";\nexport default function Page() { return <Suspense fallback={null}><PageClient /></Suspense>; }\n' > "app/(protected)/user-profile/page.tsx"
 
           echo "=== Building static export ==="
           NEXT_PUBLIC_CAPACITOR_BUILD=true \
@@ -51,12 +75,18 @@
           NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY="${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY:-pk_test_51TeacHFq0Nd4lLkFwHZ7nutFk0jI0H4bmtffnaI92is7ym5KEVuXmppnVMgQhC9qP39zBhgzOukNYUE4yvtiwa0I00CycqtIbo}" \
           npm run build
 
+          if [ ! -f "out/index.html" ]; then
+            echo "ERROR: out/index.html not found — static build failed"
+            ls -la out/ 2>/dev/null || echo "out/ directory does not exist"
+            exit 1
+          fi
+
           echo "=== Copying out/ → felcin/pages/ ==="
-          rm -rf "$CM_BUILD_DIR/pages"
-          mkdir -p "$CM_BUILD_DIR/pages"
-          cp -r /tmp/felcin-next/out/. "$CM_BUILD_DIR/pages/"
-          echo "Bundle installed. Files:"
-          ls "$CM_BUILD_DIR/pages/" | head -20
+          rm -rf "$REPO_DIR/pages"
+          mkdir -p "$REPO_DIR/pages"
+          cp -r out/. "$REPO_DIR/pages/"
+          echo "Bundle installed. Top-level items:"
+          ls "$REPO_DIR/pages/" | head -20
 
       - name: Patch capacitor.config.json for bundled mode
         script: |
@@ -488,6 +518,10 @@
 
       - name: Build felcin-next static web bundle
         script: |
+          set -e
+          REPO_DIR="$(pwd)"
+          echo "=== Repo dir: $REPO_DIR ==="
+
           echo "=== Cloning felcin-next ==="
           git clone https://github.com/jjfitnessline23-dev/felcin-next.git /tmp/felcin-next
           cd /tmp/felcin-next
@@ -498,7 +532,7 @@
           echo "=== Patching API routes: force-dynamic → force-static ==="
           find app/api -name "route.ts" -exec perl -i -pe "s/'force-dynamic'/'force-static'/g" {} \;
 
-          echo "=== Patching dynamic route pages ==="
+          echo "=== Patching dynamic route pages with Suspense ==="
           for ENTRY in \
             "app/(protected)/challenges/[id]/page.tsx:id" \
             "app/(protected)/ghost/[id]/page.tsx:id" \
@@ -511,9 +545,29 @@
             "app/(protected)/training-sessions/[sessionId]/page.tsx:sessionId"; do
             PAGE="${ENTRY%%:*}"
             KEY="${ENTRY##*:}"
-            printf 'import PageClient from "./PageClient";\n\nexport function generateStaticParams() { return [{ %s: "_" }]; }\nexport const dynamicParams = false;\n\nexport default function Page() { return <PageClient />; }\n' "$KEY" > "$PAGE"
+            printf 'import { Suspense } from "react";\nimport PageClient from "./PageClient";\n\nexport function generateStaticParams() { return [{ %s: "_" }]; }\nexport const dynamicParams = false;\n\nexport default function Page() { return <Suspense fallback={null}><PageClient /></Suspense>; }\n' "$KEY" > "$PAGE"
             echo "  Patched: $PAGE"
           done
+
+          echo "=== Wrapping useSearchParams pages with Suspense ==="
+          for PAGE in \
+            "app/(protected)/advertise/page.tsx" \
+            "app/(protected)/badges/page.tsx" \
+            "app/(protected)/comments/page.tsx" \
+            "app/(protected)/creator/page.tsx" \
+            "app/(protected)/earnings/page.tsx" \
+            "app/(protected)/explore/page.tsx" \
+            "app/(protected)/page.tsx" \
+            "app/(protected)/private-chats/page.tsx" \
+            "app/(protected)/training-sessions/page.tsx"; do
+            DIR="${PAGE%/*}"
+            mv "$PAGE" "${DIR}/page.content.tsx"
+            printf 'import { Suspense } from "react";\nimport PageContent from "./page.content";\nexport default function Page() { return <Suspense fallback={null}><PageContent /></Suspense>; }\n' > "$PAGE"
+            echo "  Wrapped: $PAGE"
+          done
+
+          echo "=== Replacing user-profile page (removes unsupported server generateMetadata) ==="
+          printf 'import { Suspense } from "react";\nimport PageClient from "./PageClient";\nexport default function Page() { return <Suspense fallback={null}><PageClient /></Suspense>; }\n' > "app/(protected)/user-profile/page.tsx"
 
           echo "=== Building static export ==="
           NEXT_PUBLIC_CAPACITOR_BUILD=true \
@@ -521,12 +575,18 @@
           NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY="${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY:-pk_test_51TeacHFq0Nd4lLkFwHZ7nutFk0jI0H4bmtffnaI92is7ym5KEVuXmppnVMgQhC9qP39zBhgzOukNYUE4yvtiwa0I00CycqtIbo}" \
           npm run build
 
+          if [ ! -f "out/index.html" ]; then
+            echo "ERROR: out/index.html not found — static build failed"
+            ls -la out/ 2>/dev/null || echo "out/ directory does not exist"
+            exit 1
+          fi
+
           echo "=== Copying out/ → felcin/pages/ ==="
-          rm -rf "$CM_BUILD_DIR/pages"
-          mkdir -p "$CM_BUILD_DIR/pages"
-          cp -r /tmp/felcin-next/out/. "$CM_BUILD_DIR/pages/"
-          echo "Bundle installed. Files:"
-          ls "$CM_BUILD_DIR/pages/" | head -20
+          rm -rf "$REPO_DIR/pages"
+          mkdir -p "$REPO_DIR/pages"
+          cp -r out/. "$REPO_DIR/pages/"
+          echo "Bundle installed. Top-level items:"
+          ls "$REPO_DIR/pages/" | head -20
 
       - name: Patch capacitor.config.json for bundled mode
         script: |
