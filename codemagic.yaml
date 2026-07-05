@@ -19,9 +19,6 @@
       - name: Build felcin-next static web bundle
         script: |
           set -e
-          REPO_DIR="$(pwd)"
-          echo "=== Repo dir: $REPO_DIR ==="
-
           echo "=== Cloning felcin-next ==="
           git clone https://github.com/jjfitnessline23-dev/felcin-next.git /tmp/felcin-next
           cd /tmp/felcin-next
@@ -81,12 +78,8 @@
             exit 1
           fi
 
-          echo "=== Copying out/ → felcin/pages/ ==="
-          rm -rf "$REPO_DIR/pages"
-          mkdir -p "$REPO_DIR/pages"
-          cp -r out/. "$REPO_DIR/pages/"
-          echo "Bundle installed. Top-level items:"
-          ls "$REPO_DIR/pages/" | head -20
+          echo "=== Static bundle ready at /tmp/felcin-next/out ==="
+          ls /tmp/felcin-next/out/ | head -10
 
       - name: Patch capacitor.config.json for bundled mode
         script: |
@@ -94,6 +87,7 @@
           import json
           with open('capacitor.config.json', 'r') as f:
               config = json.load(f)
+          config['webDir'] = '/tmp/felcin-next/out'
           config['server'] = {
               'hostname': 'www.felcin.com',
               'iosScheme': 'https'
@@ -101,7 +95,8 @@
           with open('capacitor.config.json', 'w') as f:
               json.dump(config, f, indent=2)
           print('capacitor.config.json patched:')
-          print(json.dumps(config['server'], indent=2))
+          print(f"  webDir: {config['webDir']}")
+          print(f"  server: {json.dumps(config['server'])}")
           PYEOF
 
       - name: Install npm dependencies
@@ -519,9 +514,6 @@
       - name: Build felcin-next static web bundle
         script: |
           set -e
-          REPO_DIR="$(pwd)"
-          echo "=== Repo dir: $REPO_DIR ==="
-
           echo "=== Cloning felcin-next ==="
           git clone https://github.com/jjfitnessline23-dev/felcin-next.git /tmp/felcin-next
           cd /tmp/felcin-next
@@ -581,12 +573,8 @@
             exit 1
           fi
 
-          echo "=== Copying out/ → felcin/pages/ ==="
-          rm -rf "$REPO_DIR/pages"
-          mkdir -p "$REPO_DIR/pages"
-          cp -r out/. "$REPO_DIR/pages/"
-          echo "Bundle installed. Top-level items:"
-          ls "$REPO_DIR/pages/" | head -20
+          echo "=== Static bundle ready at /tmp/felcin-next/out ==="
+          ls /tmp/felcin-next/out/ | head -10
 
       - name: Patch capacitor.config.json for bundled mode
         script: |
@@ -594,6 +582,7 @@
           import json
           with open('capacitor.config.json', 'r') as f:
               config = json.load(f)
+          config['webDir'] = '/tmp/felcin-next/out'
           config['server'] = {
               'hostname': 'www.felcin.com',
               'androidScheme': 'https'
@@ -601,7 +590,8 @@
           with open('capacitor.config.json', 'w') as f:
               json.dump(config, f, indent=2)
           print('capacitor.config.json patched:')
-          print(json.dumps(config['server'], indent=2))
+          print(f"  webDir: {config['webDir']}")
+          print(f"  server: {json.dumps(config['server'])}")
           PYEOF
 
       - name: Install npm dependencies
