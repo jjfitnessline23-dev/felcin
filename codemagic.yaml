@@ -42,8 +42,12 @@
             "app/(protected)/training-sessions/[sessionId]/page.tsx:sessionId"; do
             PAGE="${ENTRY%%:*}"
             KEY="${ENTRY##*:}"
-            printf 'import { Suspense } from "react";\nimport PageClient from "./PageClient";\n\nexport function generateStaticParams() { return [{ %s: "_" }]; }\nexport const dynamicParams = false;\n\nexport default function Page() { return <Suspense fallback={null}><PageClient /></Suspense>; }\n' "$KEY" > "$PAGE"
-            echo "  Patched: $PAGE"
+            if [ -f "$PAGE" ]; then
+              printf 'import { Suspense } from "react";\nimport PageClient from "./PageClient";\n\nexport function generateStaticParams() { return [{ %s: "_" }]; }\nexport const dynamicParams = false;\n\nexport default function Page() { return <Suspense fallback={null}><PageClient /></Suspense>; }\n' "$KEY" > "$PAGE"
+              echo "  Patched: $PAGE"
+            else
+              echo "  Skipped (not in repo): $PAGE"
+            fi
           done
 
           echo "=== Wrapping useSearchParams pages with Suspense ==="
@@ -57,14 +61,23 @@
             "app/(protected)/page.tsx" \
             "app/(protected)/private-chats/page.tsx" \
             "app/(protected)/training-sessions/page.tsx"; do
-            DIR="${PAGE%/*}"
-            mv "$PAGE" "${DIR}/page.content.tsx"
-            printf 'import { Suspense } from "react";\nimport PageContent from "./page.content";\nexport default function Page() { return <Suspense fallback={null}><PageContent /></Suspense>; }\n' > "$PAGE"
-            echo "  Wrapped: $PAGE"
+            if [ -f "$PAGE" ]; then
+              DIR="${PAGE%/*}"
+              mv "$PAGE" "${DIR}/page.content.tsx"
+              printf 'import { Suspense } from "react";\nimport PageContent from "./page.content";\nexport default function Page() { return <Suspense fallback={null}><PageContent /></Suspense>; }\n' > "$PAGE"
+              echo "  Wrapped: $PAGE"
+            else
+              echo "  Skipped (not in repo): $PAGE"
+            fi
           done
 
           echo "=== Replacing user-profile page (removes unsupported server generateMetadata) ==="
-          printf 'import { Suspense } from "react";\nimport PageClient from "./PageClient";\nexport default function Page() { return <Suspense fallback={null}><PageClient /></Suspense>; }\n' > "app/(protected)/user-profile/page.tsx"
+          if [ -f "app/(protected)/user-profile/page.tsx" ]; then
+            printf 'import { Suspense } from "react";\nimport PageClient from "./PageClient";\nexport default function Page() { return <Suspense fallback={null}><PageClient /></Suspense>; }\n' > "app/(protected)/user-profile/page.tsx"
+            echo "  Replaced: app/(protected)/user-profile/page.tsx"
+          else
+            echo "  Skipped (not in repo): app/(protected)/user-profile/page.tsx"
+          fi
 
           echo "=== Building static export ==="
           NEXT_PUBLIC_CAPACITOR_BUILD=true \
@@ -537,8 +550,12 @@
             "app/(protected)/training-sessions/[sessionId]/page.tsx:sessionId"; do
             PAGE="${ENTRY%%:*}"
             KEY="${ENTRY##*:}"
-            printf 'import { Suspense } from "react";\nimport PageClient from "./PageClient";\n\nexport function generateStaticParams() { return [{ %s: "_" }]; }\nexport const dynamicParams = false;\n\nexport default function Page() { return <Suspense fallback={null}><PageClient /></Suspense>; }\n' "$KEY" > "$PAGE"
-            echo "  Patched: $PAGE"
+            if [ -f "$PAGE" ]; then
+              printf 'import { Suspense } from "react";\nimport PageClient from "./PageClient";\n\nexport function generateStaticParams() { return [{ %s: "_" }]; }\nexport const dynamicParams = false;\n\nexport default function Page() { return <Suspense fallback={null}><PageClient /></Suspense>; }\n' "$KEY" > "$PAGE"
+              echo "  Patched: $PAGE"
+            else
+              echo "  Skipped (not in repo): $PAGE"
+            fi
           done
 
           echo "=== Wrapping useSearchParams pages with Suspense ==="
@@ -552,14 +569,23 @@
             "app/(protected)/page.tsx" \
             "app/(protected)/private-chats/page.tsx" \
             "app/(protected)/training-sessions/page.tsx"; do
-            DIR="${PAGE%/*}"
-            mv "$PAGE" "${DIR}/page.content.tsx"
-            printf 'import { Suspense } from "react";\nimport PageContent from "./page.content";\nexport default function Page() { return <Suspense fallback={null}><PageContent /></Suspense>; }\n' > "$PAGE"
-            echo "  Wrapped: $PAGE"
+            if [ -f "$PAGE" ]; then
+              DIR="${PAGE%/*}"
+              mv "$PAGE" "${DIR}/page.content.tsx"
+              printf 'import { Suspense } from "react";\nimport PageContent from "./page.content";\nexport default function Page() { return <Suspense fallback={null}><PageContent /></Suspense>; }\n' > "$PAGE"
+              echo "  Wrapped: $PAGE"
+            else
+              echo "  Skipped (not in repo): $PAGE"
+            fi
           done
 
           echo "=== Replacing user-profile page (removes unsupported server generateMetadata) ==="
-          printf 'import { Suspense } from "react";\nimport PageClient from "./PageClient";\nexport default function Page() { return <Suspense fallback={null}><PageClient /></Suspense>; }\n' > "app/(protected)/user-profile/page.tsx"
+          if [ -f "app/(protected)/user-profile/page.tsx" ]; then
+            printf 'import { Suspense } from "react";\nimport PageClient from "./PageClient";\nexport default function Page() { return <Suspense fallback={null}><PageClient /></Suspense>; }\n' > "app/(protected)/user-profile/page.tsx"
+            echo "  Replaced: app/(protected)/user-profile/page.tsx"
+          else
+            echo "  Skipped (not in repo): app/(protected)/user-profile/page.tsx"
+          fi
 
           echo "=== Building static export ==="
           NEXT_PUBLIC_CAPACITOR_BUILD=true \
