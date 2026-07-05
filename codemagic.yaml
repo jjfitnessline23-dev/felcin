@@ -417,10 +417,8 @@
 
           echo "=== Packaging IPA from archive (skip xcodebuild exportArchive) ==="
           mkdir -p "$IPA_PATH/Payload"
-          cp -r "$ARCHIVE_PATH/Products/Applications/App.app" "$IPA_PATH/Payload/"
-          cd "$IPA_PATH"
-          zip -qr App.ipa Payload/
-          cd -
+          ditto "$ARCHIVE_PATH/Products/Applications/App.app" "$IPA_PATH/Payload/App.app"
+          ditto -c -k --sequesterRsrc --keepParent "$IPA_PATH/Payload" "$IPA_PATH/App.ipa"
           echo "IPA created: $(ls -lh $IPA_PATH/App.ipa)"
 
       - name: Upload to TestFlight
