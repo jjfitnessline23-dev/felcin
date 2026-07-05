@@ -185,64 +185,40 @@
           echo "Icons installed:"
           ls "$ICON_DEST"
 
-          # Add splash logo image set to xcassets
-          SPLASH_SET="ios/App/App/Assets.xcassets/SplashLogo.imageset"
-          mkdir -p "$SPLASH_SET"
-          cp "$ICON_SRC/AppIcon-1024@1x.png" "$SPLASH_SET/splash-logo.png"
-          cat > "$SPLASH_SET/Contents.json" << 'JSON'
-          {
-            "images": [
-              { "filename": "splash-logo.png", "idiom": "universal", "scale": "1x" },
-              { "idiom": "universal", "scale": "2x" },
-              { "idiom": "universal", "scale": "3x" }
-            ],
-            "info": { "author": "xcode", "version": 1 }
-          }
-          JSON
-
-          # Write black launch screen with centered Felcin logo
-          cat > "ios/App/App/Base.lproj/LaunchScreen.storyboard" << 'STORYEOF'
-          <?xml version="1.0" encoding="UTF-8"?>
-          <document type="com.apple.InterfaceBuilder3.CocoaTouch.Storyboard.XIB" version="3.0" toolsVersion="23504" targetRuntime="AppleCocoa Touch" propertyAccessControl="none" useAutolayout="YES" launchScreen="YES" useTraitCollections="YES" useSafeAreas="YES" colorMatched="YES" initialViewController="01J-lp-oVM">
-              <device id="retina6_12" orientation="portrait" appearance="light"/>
-              <dependencies>
-                  <deployment identifier="iOS"/>
-                  <plugIn identifier="com.apple.InterfaceBuilder.IBCocoaTouchPlugin" version="23504"/>
-                  <capability name="Safe area layout guides" minToolsVersion="9.0"/>
-                  <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
-              </dependencies>
-              <scenes>
-                  <scene sceneID="EHf-IW-A2E">
-                      <objects>
-                          <viewController id="01J-lp-oVM" sceneMemberID="viewController">
-                              <view key="view" contentMode="scaleToFill" id="Ze5-6b-2t3">
-                                  <rect key="frame" x="0.0" y="0.0" width="393" height="852"/>
-                                  <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
-                                  <subviews>
-                                      <imageView clipsSubviews="YES" userInteractionEnabled="NO" contentMode="scaleAspectFit" horizontalHuggingPriority="251" verticalHuggingPriority="251" image="SplashLogo" translatesAutoresizingMaskIntoConstraints="NO" id="splash-img">
-                                      </imageView>
-                                  </subviews>
-                                  <viewLayoutGuide key="safeAreaLayoutGuide" id="Bcu-3y-fUS"/>
-                                  <color key="backgroundColor" red="0.0" green="0.0" blue="0.0" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
-                                  <constraints>
-                                      <constraint firstItem="splash-img" firstAttribute="centerX" secondItem="Ze5-6b-2t3" secondAttribute="centerX" id="cx1"/>
-                                      <constraint firstItem="splash-img" firstAttribute="centerY" secondItem="Ze5-6b-2t3" secondAttribute="centerY" constant="-40" id="cy1"/>
-                                      <constraint firstItem="splash-img" firstAttribute="width" secondItem="Ze5-6b-2t3" secondAttribute="width" multiplier="0.35" id="w1"/>
-                                      <constraint firstItem="splash-img" firstAttribute="height" secondItem="splash-img" secondAttribute="width" id="h1"/>
-                                  </constraints>
-                              </view>
-                          </viewController>
-                          <placeholder placeholderIdentifier="IBFirstResponder" id="iYj-Kq-Ea1" userLabel="First Responder" sceneMemberID="firstResponder"/>
-                      </objects>
-                      <point key="canvasLocation" x="53" y="375"/>
-                  </scene>
-              </scenes>
-              <resources>
-                  <image name="SplashLogo" width="1024" height="1024"/>
-              </resources>
-          </document>
-          STORYEOF
-          echo "Splash screen written"
+          # Write a pure black launch screen — eliminates white flash before app loads
+          python3 - << 'PYEOF'
+import os
+storyboard = '''<?xml version="1.0" encoding="UTF-8"?>
+<document type="com.apple.InterfaceBuilder3.CocoaTouch.Storyboard.XIB" version="3.0" toolsVersion="23504" targetRuntime="AppleCocoa Touch" propertyAccessControl="none" useAutolayout="YES" launchScreen="YES" useTraitCollections="YES" useSafeAreas="YES" colorMatched="YES" initialViewController="01J-lp-oVM">
+    <device id="retina6_12" orientation="portrait" appearance="light"/>
+    <dependencies>
+        <deployment identifier="iOS"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.IBCocoaTouchPlugin" version="23504"/>
+        <capability name="Safe area layout guides" minToolsVersion="9.0"/>
+        <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
+    </dependencies>
+    <scenes>
+        <scene sceneID="EHf-IW-A2E">
+            <objects>
+                <viewController id="01J-lp-oVM" sceneMemberID="viewController">
+                    <view key="view" contentMode="scaleToFill" id="Ze5-6b-2t3">
+                        <rect key="frame" x="0.0" y="0.0" width="393" height="852"/>
+                        <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+                        <color key="backgroundColor" red="0.0" green="0.0" blue="0.0" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+                    </view>
+                </viewController>
+                <placeholder placeholderIdentifier="IBFirstResponder" id="iYj-Kq-Ea1" userLabel="First Responder" sceneMemberID="firstResponder"/>
+            </objects>
+            <point key="canvasLocation" x="53" y="375"/>
+        </scene>
+    </scenes>
+</document>'''
+path = 'ios/App/App/Base.lproj/LaunchScreen.storyboard'
+os.makedirs(os.path.dirname(path), exist_ok=True)
+with open(path, 'w') as f:
+    f.write(storyboard)
+print('Black launch screen written')
+PYEOF
 
       - name: Patch WebView dark background and camera permissions
         script: |
