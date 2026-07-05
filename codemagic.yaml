@@ -415,10 +415,27 @@
             MARKETING_VERSION=1.3 \
             CURRENT_PROJECT_VERSION=$BUILD_NUMBER
 
-          echo "=== Packaging IPA from archive (skip xcodebuild exportArchive) ==="
+          echo "=== Locating App.app inside xcarchive ==="
+          echo "xcarchive root:"
+          ls -la "$ARCHIVE_PATH/"
+          echo "Products/:"
+          ls -la "$ARCHIVE_PATH/Products/" 2>/dev/null || echo "(missing)"
+          echo "Applications/:"
+          ls -la "$ARCHIVE_PATH/Products/Applications/" 2>/dev/null || echo "(missing)"
+          echo "All .app bundles in archive:"
+          find "$ARCHIVE_PATH" -name "*.app" -not -path "*dSYM*" 2>/dev/null
+
+          APP_PATH=$(find "$ARCHIVE_PATH" -name "*.app" -not -path "*dSYM*" -maxdepth 4 | head -1)
+          echo "Using App.app at: $APP_PATH"
+          echo "App.app size: $(du -sh "$APP_PATH" 2>/dev/null)"
+
+          echo "=== Packaging IPA ==="
           mkdir -p "$IPA_PATH/Payload"
-          ditto "$ARCHIVE_PATH/Products/Applications/App.app" "$IPA_PATH/Payload/App.app"
-          ditto -c -k --sequesterRsrc --keepParent "$IPA_PATH/Payload" "$IPA_PATH/App.ipa"
+          rsync -a "$APP_PATH/" "$IPA_PATH/Payload/App.app/"
+          echo "Payload contents: $(ls $IPA_PATH/Payload/App.app/ | wc -l) files"
+          cd "$IPA_PATH"
+          zip -qr App.ipa Payload/
+          cd -
           echo "IPA created: $(ls -lh $IPA_PATH/App.ipa)"
 
       - name: Upload to TestFlight
