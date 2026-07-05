@@ -419,9 +419,22 @@
           fi
           echo "Using profile UUID: $UUID"
 
+          echo "=== Pre-flight: keychain & signing check ==="
+          security find-identity -v -p codesigning | grep -i "distribution\|apple" || echo "WARNING: No distribution identity found in keychain"
+          PROFILE_FILE="$HOME/Library/MobileDevice/Provisioning Profiles/$UUID.mobileprovision"
+          if [ -f "$PROFILE_FILE" ]; then
+            echo "Profile file: OK ($(wc -c < "$PROFILE_FILE") bytes)"
+          else
+            echo "ERROR: Profile file not found at $PROFILE_FILE"
+            ls "$HOME/Library/MobileDevice/Provisioning Profiles/" 2>/dev/null || echo "(directory empty)"
+            exit 1
+          fi
+          echo "Xcode version: $(xcodebuild -version)"
+          echo "SDK: $(xcodebuild -showsdks 2>/dev/null | grep iphoneos | tail -1)"
+
           ARCHIVE_PATH="build/ios/xcarchive/App.xcarchive"
           IPA_PATH="build/ios/ipa"
-          mkdir -p "$IPA_PATH"
+          mkdir -p "$(dirname "$ARCHIVE_PATH")" "$IPA_PATH"
 
           echo "=== Archiving ==="
           xcodebuild \
