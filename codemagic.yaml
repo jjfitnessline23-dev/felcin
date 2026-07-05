@@ -430,8 +430,8 @@
       - name: Patch GoogleAuthProviderHandler to clear cached account on sign-out
         script: |
           FILE="node_modules/@capacitor-firebase/authentication/android/src/main/java/io/capawesome/capacitorjs/plugins/firebase/authentication/handlers/GoogleAuthProviderHandler.java"
-          sed -i 's/public void signOut() {/public void signOut() {\n        if (mGoogleSignInClient != null) { mGoogleSignInClient.signOut(); }/' "$FILE"
-          echo "Patch applied"
+          perl -i -pe 's/public void signOut\(\) \{/public void signOut() {\n        if (mGoogleSignInClient != null) { mGoogleSignInClient.signOut(); }/' "$FILE"
+          echo "Patch applied — signOut() now clears native Google Sign-In cache"
 
       - name: Add Android platform
         script: |
