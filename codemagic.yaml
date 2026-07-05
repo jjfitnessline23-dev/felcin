@@ -80,13 +80,6 @@
                   print('  Wrapped: ' + page)
               else:
                   print('  Skipped: ' + page)
-          up = 'app/(protected)/user-profile/page.tsx'
-          if os.path.isfile(up):
-              open(up, 'w').write('import { Suspense } from "react";\nimport PageClient from "./PageClient";\n'
-                                  'export default function Page() { return <Suspense fallback={null}><PageClient /></Suspense>; }\n')
-              print('  Replaced: ' + up)
-          else:
-              print('  Skipped: ' + up)
           print('All patches applied.')
           PYEOF
 
@@ -599,13 +592,6 @@
                   print('  Wrapped: ' + page)
               else:
                   print('  Skipped: ' + page)
-          up = 'app/(protected)/user-profile/page.tsx'
-          if os.path.isfile(up):
-              open(up, 'w').write('import { Suspense } from "react";\nimport PageClient from "./PageClient";\n'
-                                  'export default function Page() { return <Suspense fallback={null}><PageClient /></Suspense>; }\n')
-              print('  Replaced: ' + up)
-          else:
-              print('  Skipped: ' + up)
           print('All patches applied.')
           PYEOF
 
