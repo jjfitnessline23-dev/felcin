@@ -385,10 +385,6 @@
             echo '<plist version="1.0"><dict>'
             echo '  <key>method</key><string>app-store-connect</string>'
             echo '  <key>teamID</key><string>UWSVWR4VTX</string>'
-            echo '  <key>signingStyle</key><string>manual</string>'
-            echo '  <key>provisioningProfiles</key><dict>'
-            echo "    <key>com.felcin.app</key><string>$UUID</string>"
-            echo '  </dict>'
             echo '</dict></plist>'
           } > /Users/builder/export_options.plist
           echo "Done"
