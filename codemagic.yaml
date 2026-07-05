@@ -28,85 +28,67 @@
 
           echo "=== Patching felcin-next for static export ==="
           python3 << 'PYEOF'
-import os, re
-
-# Patch API routes: force-dynamic -> force-static
-for root, dirs, files in os.walk('app/api'):
-    for f in files:
-        if f == 'route.ts':
-            path = os.path.join(root, f)
-            content = open(path).read()
-            patched = content.replace("'force-dynamic'", "'force-static'")
-            if patched != content:
-                open(path, 'w').write(patched)
-                print(f'  API patched: {path}')
-
-# Patch dynamic route pages with Suspense
-dynamic_routes = [
-    ('app/(protected)/challenges/[id]/page.tsx', 'id'),
-    ('app/(protected)/ghost/[id]/page.tsx', 'id'),
-    ('app/(protected)/live/[id]/page.tsx', 'id'),
-    ('app/(protected)/podcasts/[id]/page.tsx', 'id'),
-    ('app/(protected)/podcasts/live/[id]/page.tsx', 'id'),
-    ('app/(protected)/subscribe/[uid]/page.tsx', 'uid'),
-    ('app/(protected)/tag/[name]/page.tsx', 'name'),
-    ('app/(protected)/trainers/[uid]/page.tsx', 'uid'),
-    ('app/(protected)/training-sessions/[sessionId]/page.tsx', 'sessionId'),
-]
-for path, key in dynamic_routes:
-    if os.path.isfile(path):
-        content = (
-            'import { Suspense } from "react";\n'
-            'import PageClient from "./PageClient";\n\n'
-            'export function generateStaticParams() { return [{ ' + key + ': "_" }]; }\n'
-            'export const dynamicParams = false;\n\n'
-            'export default function Page() { return <Suspense fallback={null}><PageClient /></Suspense>; }\n'
-        )
-        open(path, 'w').write(content)
-        print(f'  Patched: {path}')
-    else:
-        print(f'  Skipped (not in repo): {path}')
-
-# Wrap useSearchParams pages with Suspense
-search_params_pages = [
-    'app/(protected)/advertise/page.tsx',
-    'app/(protected)/badges/page.tsx',
-    'app/(protected)/comments/page.tsx',
-    'app/(protected)/creator/page.tsx',
-    'app/(protected)/earnings/page.tsx',
-    'app/(protected)/explore/page.tsx',
-    'app/(protected)/page.tsx',
-    'app/(protected)/private-chats/page.tsx',
-    'app/(protected)/training-sessions/page.tsx',
-]
-wrapper = (
-    'import { Suspense } from "react";\n'
-    'import PageContent from "./page.content";\n'
-    'export default function Page() { return <Suspense fallback={null}><PageContent /></Suspense>; }\n'
-)
-for page in search_params_pages:
-    if os.path.isfile(page):
-        content_path = os.path.join(os.path.dirname(page), 'page.content.tsx')
-        os.rename(page, content_path)
-        open(page, 'w').write(wrapper)
-        print(f'  Wrapped: {page}')
-    else:
-        print(f'  Skipped (not in repo): {page}')
-
-# Replace user-profile page (has unsupported server generateMetadata)
-up = 'app/(protected)/user-profile/page.tsx'
-if os.path.isfile(up):
-    open(up, 'w').write(
-        'import { Suspense } from "react";\n'
-        'import PageClient from "./PageClient";\n'
-        'export default function Page() { return <Suspense fallback={null}><PageClient /></Suspense>; }\n'
-    )
-    print(f'  Replaced: {up}')
-else:
-    print(f'  Skipped (not in repo): {up}')
-
-print('All patches applied.')
-PYEOF
+          import os
+          for root, dirs, files in os.walk('app/api'):
+              for f in files:
+                  if f == 'route.ts':
+                      p = os.path.join(root, f)
+                      c = open(p).read()
+                      nc = c.replace("'force-dynamic'", "'force-static'")
+                      if nc != c:
+                          open(p, 'w').write(nc)
+                          print('  API patched: ' + p)
+          dynamic_routes = [
+              ('app/(protected)/challenges/[id]/page.tsx', 'id'),
+              ('app/(protected)/ghost/[id]/page.tsx', 'id'),
+              ('app/(protected)/live/[id]/page.tsx', 'id'),
+              ('app/(protected)/podcasts/[id]/page.tsx', 'id'),
+              ('app/(protected)/podcasts/live/[id]/page.tsx', 'id'),
+              ('app/(protected)/subscribe/[uid]/page.tsx', 'uid'),
+              ('app/(protected)/tag/[name]/page.tsx', 'name'),
+              ('app/(protected)/trainers/[uid]/page.tsx', 'uid'),
+              ('app/(protected)/training-sessions/[sessionId]/page.tsx', 'sessionId'),
+          ]
+          for path, key in dynamic_routes:
+              if os.path.isfile(path):
+                  c = ('import { Suspense } from "react";\nimport PageClient from "./PageClient";\n\n'
+                       'export function generateStaticParams() { return [{ ' + key + ': "_" }]; }\n'
+                       'export const dynamicParams = false;\n\n'
+                       'export default function Page() { return <Suspense fallback={null}><PageClient /></Suspense>; }\n')
+                  open(path, 'w').write(c)
+                  print('  Patched: ' + path)
+              else:
+                  print('  Skipped: ' + path)
+          sp = [
+              'app/(protected)/advertise/page.tsx',
+              'app/(protected)/badges/page.tsx',
+              'app/(protected)/comments/page.tsx',
+              'app/(protected)/creator/page.tsx',
+              'app/(protected)/earnings/page.tsx',
+              'app/(protected)/explore/page.tsx',
+              'app/(protected)/page.tsx',
+              'app/(protected)/private-chats/page.tsx',
+              'app/(protected)/training-sessions/page.tsx',
+          ]
+          w = ('import { Suspense } from "react";\nimport PageContent from "./page.content";\n'
+               'export default function Page() { return <Suspense fallback={null}><PageContent /></Suspense>; }\n')
+          for page in sp:
+              if os.path.isfile(page):
+                  cp = os.path.join(os.path.dirname(page), 'page.content.tsx')
+                  os.rename(page, cp)
+                  open(page, 'w').write(w)
+                  print('  Wrapped: ' + page)
+              else:
+                  print('  Skipped: ' + page)
+          up = 'app/(protected)/user-profile/page.tsx'
+          if os.path.isfile(up):
+              open(up, 'w').write('import { Suspense } from "react";\nimport PageClient from "./PageClient";\n'
+                                  'export default function Page() { return <Suspense fallback={null}><PageClient /></Suspense>; }\n')
+              print('  Replaced: ' + up)
+          else:
+              print('  Skipped: ' + up)
+          print('All patches applied.')
+          PYEOF
 
           echo "=== Building static export ==="
           NEXT_PUBLIC_CAPACITOR_BUILD=true \
@@ -565,85 +547,67 @@ PYEOF
 
           echo "=== Patching felcin-next for static export ==="
           python3 << 'PYEOF'
-import os, re
-
-# Patch API routes: force-dynamic -> force-static
-for root, dirs, files in os.walk('app/api'):
-    for f in files:
-        if f == 'route.ts':
-            path = os.path.join(root, f)
-            content = open(path).read()
-            patched = content.replace("'force-dynamic'", "'force-static'")
-            if patched != content:
-                open(path, 'w').write(patched)
-                print(f'  API patched: {path}')
-
-# Patch dynamic route pages with Suspense
-dynamic_routes = [
-    ('app/(protected)/challenges/[id]/page.tsx', 'id'),
-    ('app/(protected)/ghost/[id]/page.tsx', 'id'),
-    ('app/(protected)/live/[id]/page.tsx', 'id'),
-    ('app/(protected)/podcasts/[id]/page.tsx', 'id'),
-    ('app/(protected)/podcasts/live/[id]/page.tsx', 'id'),
-    ('app/(protected)/subscribe/[uid]/page.tsx', 'uid'),
-    ('app/(protected)/tag/[name]/page.tsx', 'name'),
-    ('app/(protected)/trainers/[uid]/page.tsx', 'uid'),
-    ('app/(protected)/training-sessions/[sessionId]/page.tsx', 'sessionId'),
-]
-for path, key in dynamic_routes:
-    if os.path.isfile(path):
-        content = (
-            'import { Suspense } from "react";\n'
-            'import PageClient from "./PageClient";\n\n'
-            'export function generateStaticParams() { return [{ ' + key + ': "_" }]; }\n'
-            'export const dynamicParams = false;\n\n'
-            'export default function Page() { return <Suspense fallback={null}><PageClient /></Suspense>; }\n'
-        )
-        open(path, 'w').write(content)
-        print(f'  Patched: {path}')
-    else:
-        print(f'  Skipped (not in repo): {path}')
-
-# Wrap useSearchParams pages with Suspense
-search_params_pages = [
-    'app/(protected)/advertise/page.tsx',
-    'app/(protected)/badges/page.tsx',
-    'app/(protected)/comments/page.tsx',
-    'app/(protected)/creator/page.tsx',
-    'app/(protected)/earnings/page.tsx',
-    'app/(protected)/explore/page.tsx',
-    'app/(protected)/page.tsx',
-    'app/(protected)/private-chats/page.tsx',
-    'app/(protected)/training-sessions/page.tsx',
-]
-wrapper = (
-    'import { Suspense } from "react";\n'
-    'import PageContent from "./page.content";\n'
-    'export default function Page() { return <Suspense fallback={null}><PageContent /></Suspense>; }\n'
-)
-for page in search_params_pages:
-    if os.path.isfile(page):
-        content_path = os.path.join(os.path.dirname(page), 'page.content.tsx')
-        os.rename(page, content_path)
-        open(page, 'w').write(wrapper)
-        print(f'  Wrapped: {page}')
-    else:
-        print(f'  Skipped (not in repo): {page}')
-
-# Replace user-profile page (has unsupported server generateMetadata)
-up = 'app/(protected)/user-profile/page.tsx'
-if os.path.isfile(up):
-    open(up, 'w').write(
-        'import { Suspense } from "react";\n'
-        'import PageClient from "./PageClient";\n'
-        'export default function Page() { return <Suspense fallback={null}><PageClient /></Suspense>; }\n'
-    )
-    print(f'  Replaced: {up}')
-else:
-    print(f'  Skipped (not in repo): {up}')
-
-print('All patches applied.')
-PYEOF
+          import os
+          for root, dirs, files in os.walk('app/api'):
+              for f in files:
+                  if f == 'route.ts':
+                      p = os.path.join(root, f)
+                      c = open(p).read()
+                      nc = c.replace("'force-dynamic'", "'force-static'")
+                      if nc != c:
+                          open(p, 'w').write(nc)
+                          print('  API patched: ' + p)
+          dynamic_routes = [
+              ('app/(protected)/challenges/[id]/page.tsx', 'id'),
+              ('app/(protected)/ghost/[id]/page.tsx', 'id'),
+              ('app/(protected)/live/[id]/page.tsx', 'id'),
+              ('app/(protected)/podcasts/[id]/page.tsx', 'id'),
+              ('app/(protected)/podcasts/live/[id]/page.tsx', 'id'),
+              ('app/(protected)/subscribe/[uid]/page.tsx', 'uid'),
+              ('app/(protected)/tag/[name]/page.tsx', 'name'),
+              ('app/(protected)/trainers/[uid]/page.tsx', 'uid'),
+              ('app/(protected)/training-sessions/[sessionId]/page.tsx', 'sessionId'),
+          ]
+          for path, key in dynamic_routes:
+              if os.path.isfile(path):
+                  c = ('import { Suspense } from "react";\nimport PageClient from "./PageClient";\n\n'
+                       'export function generateStaticParams() { return [{ ' + key + ': "_" }]; }\n'
+                       'export const dynamicParams = false;\n\n'
+                       'export default function Page() { return <Suspense fallback={null}><PageClient /></Suspense>; }\n')
+                  open(path, 'w').write(c)
+                  print('  Patched: ' + path)
+              else:
+                  print('  Skipped: ' + path)
+          sp = [
+              'app/(protected)/advertise/page.tsx',
+              'app/(protected)/badges/page.tsx',
+              'app/(protected)/comments/page.tsx',
+              'app/(protected)/creator/page.tsx',
+              'app/(protected)/earnings/page.tsx',
+              'app/(protected)/explore/page.tsx',
+              'app/(protected)/page.tsx',
+              'app/(protected)/private-chats/page.tsx',
+              'app/(protected)/training-sessions/page.tsx',
+          ]
+          w = ('import { Suspense } from "react";\nimport PageContent from "./page.content";\n'
+               'export default function Page() { return <Suspense fallback={null}><PageContent /></Suspense>; }\n')
+          for page in sp:
+              if os.path.isfile(page):
+                  cp = os.path.join(os.path.dirname(page), 'page.content.tsx')
+                  os.rename(page, cp)
+                  open(page, 'w').write(w)
+                  print('  Wrapped: ' + page)
+              else:
+                  print('  Skipped: ' + page)
+          up = 'app/(protected)/user-profile/page.tsx'
+          if os.path.isfile(up):
+              open(up, 'w').write('import { Suspense } from "react";\nimport PageClient from "./PageClient";\n'
+                                  'export default function Page() { return <Suspense fallback={null}><PageClient /></Suspense>; }\n')
+              print('  Replaced: ' + up)
+          else:
+              print('  Skipped: ' + up)
+          print('All patches applied.')
+          PYEOF
 
           echo "=== Building static export ==="
           NEXT_PUBLIC_CAPACITOR_BUILD=true \
