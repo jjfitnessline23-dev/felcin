@@ -428,11 +428,15 @@
           echo "$APP_STORE_KEY_B64" | base64 --decode > /tmp/AuthKey.p8
           IPA=$(find build/ios/ipa -name "*.ipa" | head -1)
           echo "Uploading: $IPA"
+          echo "IPA size: $(ls -lh $IPA)"
+          echo "IPA bundle ID check:"
+          unzip -p "$IPA" "Payload/App.app/Info.plist" | plutil -convert xml1 -o - - | grep -A1 CFBundleIdentifier || true
           app-store-connect publish \
             --path "$IPA" \
             --key-id "$APP_STORE_CONNECT_KEY_IDENTIFIER" \
             --issuer-id "$APP_STORE_CONNECT_ISSUER_ID" \
-            --private-key "@file:/tmp/AuthKey.p8"
+            --private-key "@file:/tmp/AuthKey.p8" \
+            --verbose
 
     triggering:
       events:
