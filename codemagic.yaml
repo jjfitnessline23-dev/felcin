@@ -386,9 +386,16 @@
             echo '<plist version="1.0"><dict>'
             echo '  <key>method</key><string>app-store-connect</string>'
             echo '  <key>teamID</key><string>UWSVWR4VTX</string>'
+            echo '  <key>signingStyle</key><string>manual</string>'
+            echo '  <key>signingCertificate</key><string>Apple Distribution</string>'
+            echo '  <key>provisioningProfiles</key>'
+            echo '  <dict>'
+            echo "    <key>com.felcin.app</key><string>$UUID</string>"
+            echo '  </dict>'
             echo '</dict></plist>'
           } > /Users/builder/export_options.plist
-          echo "Done"
+          echo "=== export_options.plist ==="
+          cat /Users/builder/export_options.plist
 
       - name: Build IPA
         script: |
@@ -437,23 +444,37 @@
           fi
           echo "App.app: $(du -sh "$APP_PATH")"
 
-          echo "=== Packaging IPA ==="
-          mkdir -p "$IPA_PATH/Payload"
-          ditto "$APP_PATH" "$IPA_PATH/Payload/App.app"
-          echo "Payload files: $(find $IPA_PATH/Payload -maxdepth 2 | wc -l)"
-          cd "$IPA_PATH"
-          zip -qr App.ipa Payload/
-          cd -
-          echo "IPA created: $(ls -lh $IPA_PATH/App.ipa)"
+          echo "=== Exporting IPA via xcodebuild -exportArchive ==="
+          xcodebuild -exportArchive \
+            -archivePath "$ARCHIVE_PATH" \
+            -exportPath "$IPA_PATH" \
+            -exportOptionsPlist /Users/builder/export_options.plist
+
+          EXPORTED_IPA=$(find "$IPA_PATH" -name "*.ipa" | head -1)
+          if [ -z "$EXPORTED_IPA" ]; then
+            echo "ERROR: No IPA found in $IPA_PATH after xcodebuild -exportArchive"
+            echo "=== Export directory contents ==="
+            ls -la "$IPA_PATH/" 2>/dev/null || echo "(empty or missing)"
+            exit 1
+          fi
+          echo "IPA ready: $(ls -lh "$EXPORTED_IPA")"
 
       - name: Upload to TestFlight
         script: |
-          echo "$APP_STORE_KEY_B64" | base64 --decode > /tmp/AuthKey.p8
+          set -e
           IPA=$(find build/ios/ipa -name "*.ipa" | head -1)
-          echo "Uploading: $IPA"
-          echo "IPA size: $(ls -lh $IPA)"
+          if [ -z "$IPA" ]; then
+            echo "ERROR: No IPA found in build/ios/ipa/ — Build IPA step must have failed"
+            echo "=== build/ contents ==="
+            find build/ 2>/dev/null | head -30 || echo "build/ does not exist"
+            exit 1
+          fi
+          echo "Found IPA: $IPA"
+          echo "IPA size: $(ls -lh "$IPA" | awk '{print $5}')"
           echo "IPA bundle ID check:"
           unzip -p "$IPA" "Payload/App.app/Info.plist" | plutil -convert xml1 -o - - | grep -A1 CFBundleIdentifier || true
+
+          echo "$APP_STORE_KEY_B64" | base64 --decode > /tmp/AuthKey.p8
           app-store-connect publish \
             --path "$IPA" \
             --key-id "$APP_STORE_CONNECT_KEY_IDENTIFIER" \
