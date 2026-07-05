@@ -375,8 +375,9 @@
           PBXPROJ="ios/App/App.xcodeproj/project.pbxproj"
           perl -i -pe "s/CODE_SIGN_STYLE = Automatic;/CODE_SIGN_STYLE = Manual;\n\t\t\t\tPROVISIONING_PROFILE_SPECIFIER = \"$UUID\";/g" "$PBXPROJ"
           perl -i -pe 's/CODE_SIGN_IDENTITY = "iPhone Developer";/CODE_SIGN_IDENTITY = "Apple Distribution";/g' "$PBXPROJ"
+          perl -i -pe 's/PRODUCT_BUNDLE_IDENTIFIER = "app\.felcin\.social";/PRODUCT_BUNDLE_IDENTIFIER = "com.felcin.app";/g' "$PBXPROJ"
           echo "Patched. Verifying:"
-          grep "CODE_SIGN_STYLE\|PROVISIONING_PROFILE_SPECIFIER\|CODE_SIGN_IDENTITY" "$PBXPROJ"
+          grep "CODE_SIGN_STYLE\|PROVISIONING_PROFILE_SPECIFIER\|CODE_SIGN_IDENTITY\|PRODUCT_BUNDLE_IDENTIFIER" "$PBXPROJ"
 
           echo "=== Generating export options ==="
           {
@@ -411,7 +412,6 @@
             COMPILER_INDEX_STORE_ENABLE=NO \
             DEVELOPMENT_TEAM=UWSVWR4VTX \
             CODE_SIGN_IDENTITY="Apple Distribution" \
-            PRODUCT_BUNDLE_IDENTIFIER=com.felcin.app \
             MARKETING_VERSION=1.3 \
             CURRENT_PROJECT_VERSION=$BUILD_NUMBER
 
