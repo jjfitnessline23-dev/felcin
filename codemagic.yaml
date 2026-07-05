@@ -393,6 +393,13 @@
             --issuer-id "$APP_STORE_CONNECT_ISSUER_ID" \
             --private-key "@file:/tmp/AuthKey.p8"
 
+    triggering:
+      events:
+        - push
+      branch_patterns:
+        - pattern: master
+          include: true
+
     artifacts:
       - build/ios/ipa/*.ipa
       - /tmp/xcodebuild_logs/*.log
@@ -669,6 +676,13 @@
           service.edits().commit(packageName=PACKAGE, editId=edit_id).execute()
           print(f'SUCCESS: Published versionCode {version_code} to {TRACK} track!')
           PYEOF
+
+    triggering:
+      events:
+        - push
+      branch_patterns:
+        - pattern: master
+          include: true
 
     artifacts:
       - android/app/build/outputs/bundle/release/app-release.aab
