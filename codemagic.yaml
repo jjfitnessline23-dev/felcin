@@ -446,12 +446,15 @@
           unzip -p "$IPA" "Payload/App.app/Info.plist" | plutil -convert xml1 -o - - | grep -A1 CFBundleIdentifier || true
 
           echo "$APP_STORE_KEY_B64" | base64 --decode > /tmp/AuthKey.p8
-          app-store-connect publish \
-            --path "$IPA" \
-            --key-id "$APP_STORE_CONNECT_KEY_IDENTIFIER" \
-            --issuer-id "$APP_STORE_CONNECT_ISSUER_ID" \
-            --private-key "@file:/tmp/AuthKey.p8" \
-            --verbose
+          # Pass --apple-id directly to skip the bundle ID → Apple ID lookup (which fails in Xcode 26 altool)
+          xcrun altool --upload-app \
+            --file "$IPA" \
+            --type ios \
+            --apple-id 6763660775 \
+            --apiKey "$APP_STORE_CONNECT_KEY_IDENTIFIER" \
+            --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID" \
+            --private-key /tmp/AuthKey.p8 \
+            --output-format json
 
     triggering:
       events:
