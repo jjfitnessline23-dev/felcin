@@ -208,6 +208,17 @@
           /usr/libexec/PlistBuddy -c "Add :NSPhotoLibraryAddUsageDescription string 'Felcin needs permission to save photos and videos to your library.'" ios/App/App/Info.plist 2>/dev/null || \
           /usr/libexec/PlistBuddy -c "Set :NSPhotoLibraryAddUsageDescription 'Felcin needs permission to save photos and videos to your library.'" ios/App/App/Info.plist
 
+          # SKAdNetwork IDs required for Google Ads iOS app campaign attribution (iOS 14.5+)
+          /usr/libexec/PlistBuddy -c "Add :SKAdNetworkItems array" ios/App/App/Info.plist 2>/dev/null || true
+          /usr/libexec/PlistBuddy -c "Add :SKAdNetworkItems:0 dict" ios/App/App/Info.plist 2>/dev/null || true
+          /usr/libexec/PlistBuddy -c "Add :SKAdNetworkItems:0:SKAdNetworkIdentifier string cstr6suwn9.skadnetwork" ios/App/App/Info.plist 2>/dev/null || true
+          /usr/libexec/PlistBuddy -c "Add :SKAdNetworkItems:1 dict" ios/App/App/Info.plist 2>/dev/null || true
+          /usr/libexec/PlistBuddy -c "Add :SKAdNetworkItems:1:SKAdNetworkIdentifier string 4fzdc2evr5.skadnetwork" ios/App/App/Info.plist 2>/dev/null || true
+          /usr/libexec/PlistBuddy -c "Add :SKAdNetworkItems:2 dict" ios/App/App/Info.plist 2>/dev/null || true
+          /usr/libexec/PlistBuddy -c "Add :SKAdNetworkItems:2:SKAdNetworkIdentifier string 2fnua5tdw4.skadnetwork" ios/App/App/Info.plist 2>/dev/null || true
+          /usr/libexec/PlistBuddy -c "Add :SKAdNetworkItems:3 dict" ios/App/App/Info.plist 2>/dev/null || true
+          /usr/libexec/PlistBuddy -c "Add :SKAdNetworkItems:3:SKAdNetworkIdentifier string ydx93a7ass.skadnetwork" ios/App/App/Info.plist 2>/dev/null || true
+
           echo "Build number set to: $BUILD_NUMBER"
           echo "Permissions patched into Info.plist"
 
