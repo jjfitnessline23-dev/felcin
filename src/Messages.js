@@ -229,40 +229,85 @@ function Messages({ currentUser }) {
               <p className="empty-title">Select a chat</p>
               <p className="empty-desc">Pick a conversation or start a new private chat.</p>
             </div>
-          ) : (
-            <>
-              <div className="messages-thread">
-                {messages.length === 0 ? <p className="muted">No messages yet.</p> : null}
-                {messages.map((m) => {
-                  const mine = m.senderId === currentUser.uid;
-                  return (
-                    <div key={m.id} className={`messages-bubble-row${mine ? ' mine' : ''}`}>
-                      <div className={`messages-bubble${mine ? ' mine' : ''}`}>{m.text}</div>
-                    </div>
-                  );
-                })}
-                <div ref={messagesEndRef} />
-              </div>
+          ) : (() => {
+            const partner = usersById[activeChat.otherUserId] || {};
+            const initial = (partner.displayName || partner.email || '?')[0]?.toUpperCase() || '?';
+            return (
+              <>
+                <div className="messages-thread-header">
+                  <div className="avatar avatar-sm">
+                    {partner.photoURL
+                      ? <img className="avatar-img" src={partner.photoURL} alt="Profile" />
+                      : initial}
+                  </div>
+                  <div className="messages-thread-header-info">
+                    <div className="messages-thread-name">{partner.displayName || partner.email || 'User'}</div>
+                  </div>
+                </div>
 
-              <div className="messages-compose">
-                <input
-                  className="input"
-                  value={messageText}
-                  onChange={(e) => setMessageText(e.target.value)}
-                  placeholder="Type a private message..."
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault();
-                      sendMessage();
-                    }
-                  }}
-                />
-                <button className="primary-btn" onClick={sendMessage} disabled={sending || !messageText.trim()}>
-                  {sending ? 'Sending...' : 'Send'}
-                </button>
-              </div>
-            </>
-          )}
+                <div className="messages-thread">
+                  {messages.length === 0 ? (
+                    <div className="messages-empty-chat">
+                      <div className="avatar avatar-xl">
+                        {partner.photoURL
+                          ? <img className="avatar-img" src={partner.photoURL} alt="Profile" />
+                          : initial}
+                      </div>
+                      <div className="messages-empty-chat-name">{partner.displayName || partner.email || 'User'}</div>
+                      <div className="messages-empty-chat-hint">Say hello 👋</div>
+                    </div>
+                  ) : null}
+                  {messages.map((m) => {
+                    const mine = m.senderId === currentUser.uid;
+                    const ts = m.createdAt?.toDate?.();
+                    const timeStr = ts ? ts.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+                    return (
+                      <div key={m.id} className={`messages-bubble-row${mine ? ' mine' : ''}`}>
+                        {!mine && (
+                          <div className="avatar avatar-xs messages-bubble-avatar">
+                            {partner.photoURL
+                              ? <img className="avatar-img" src={partner.photoURL} alt="" />
+                              : initial}
+                          </div>
+                        )}
+                        <div className="messages-bubble-wrap">
+                          <div className={`messages-bubble${mine ? ' mine' : ''}`}>{m.text}</div>
+                          {timeStr ? <div className={`messages-bubble-time${mine ? ' mine' : ''}`}>{timeStr}</div> : null}
+                        </div>
+                      </div>
+                    );
+                  })}
+                  <div ref={messagesEndRef} />
+                </div>
+
+                <div className="messages-compose">
+                  <input
+                    className="input messages-compose-input"
+                    value={messageText}
+                    onChange={(e) => setMessageText(e.target.value)}
+                    placeholder="Type a message..."
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        sendMessage();
+                      }
+                    }}
+                  />
+                  <button
+                    className="messages-send-btn"
+                    onClick={sendMessage}
+                    disabled={sending || !messageText.trim()}
+                    aria-label="Send"
+                  >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                      <line x1="22" y1="2" x2="11" y2="13" />
+                      <polygon points="22 2 15 22 11 13 2 9 22 2" />
+                    </svg>
+                  </button>
+                </div>
+              </>
+            );
+          })()}
         </div>
       </div>
 

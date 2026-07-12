@@ -21,6 +21,7 @@ import Explore from './Explore';
 import Messages from './Messages';
 import AdminPanel from './AdminPanel';
 import PolicyPage from './PolicyPage';
+import { useWelcomeNotification } from './welcomeNotification';
 import './index.css';
 
 function getAuthErrorMessage(errorCode) {
@@ -85,6 +86,7 @@ function getMaxBirthDateFor16() {
 }
 
 function App() {
+  useWelcomeNotification();
   const bootstrapAdminEmail = 'johnjeannis@gmail.com';
   const [user, setUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
@@ -293,7 +295,7 @@ function App() {
       <div className="auth-shell">
         <div className="auth-card">
           <div className="auth-logo-row">
-            <div className="auth-logo-icon">F</div>
+            <img src="/felcin-logo-7-heartbeat.svg" alt="Felcin" className="auth-logo-icon" />
             <span className="auth-logo-name">Felcin</span>
           </div>
           <p className="auth-tagline">Fast, simple way to share and connect.</p>
@@ -311,7 +313,7 @@ function App() {
       <div className="auth-shell">
         <div className="auth-card">
           <div className="auth-logo-row">
-            <div className="auth-logo-icon">F</div>
+            <img src="/felcin-logo-7-heartbeat.svg" alt="Felcin" className="auth-logo-icon" />
             <span className="auth-logo-name">Felcin</span>
           </div>
           <p className="loading-text">Checking session\u2026</p>
@@ -325,7 +327,7 @@ function App() {
       <div className="auth-shell">
         <div className="auth-card">
           <div className="auth-logo-row">
-            <div className="auth-logo-icon">F</div>
+            <img src="/felcin-logo-7-heartbeat.svg" alt="Felcin" className="auth-logo-icon" />
             <span className="auth-logo-name">Felcin</span>
           </div>
           <p className="auth-tagline">Fast, simple way to share and connect.</p>
@@ -451,7 +453,7 @@ function App() {
     <div className="main-container">
       <div className="sidebar">
         <div className="sidebar-brand">
-          <div className="sidebar-logo-icon">F</div>
+          <img src="/felcin-logo-7-heartbeat.svg" alt="Felcin" className="sidebar-logo-icon" />
           <span className="sidebar-logo-name">Felcin</span>
         </div>
 
