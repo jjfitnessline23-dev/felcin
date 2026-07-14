@@ -1,8 +1,16 @@
-// Replaced by com.felcin.app.MainActivity — kept for git history only, not compiled
-package app.felcin.social;
+package com.felcin.app;
 
-@SuppressWarnings("unused")
-class _LegacyMainActivity_DoNotUse {
+import android.os.Bundle;
+import android.os.Message;
+import android.view.View;
+import android.view.ViewGroup;
+import android.webkit.WebChromeClient;
+import android.webkit.WebView;
+import android.webkit.WebViewClient;
+import com.getcapacitor.BridgeActivity;
+import com.getcapacitor.BridgeWebChromeClient;
+
+public class MainActivity extends BridgeActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);

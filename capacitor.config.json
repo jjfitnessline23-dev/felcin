@@ -1,18 +1,20 @@
 {
-  "appId": "app.felcin.social",
+  "appId": "com.felcin.app",
   "appName": "Felcin",
   "webDir": "pages",
-  "server": {
-    "url": "https://www.felcin.com",
-    "cleartext": false
-  },
   "ios": {
     "scheme": "Felcin",
     "backgroundColor": "#000000",
-    "contentInset": "never"
+    "contentInset": "never",
+    "preferredContentMode": "mobile",
+    "limitsNavigationsToAppBoundDomains": true
   },
   "android": {
-    "backgroundColor": "#000000"
+    "backgroundColor": "#000000",
+    "allowMixedContent": false,
+    "buildOptions": {
+      "releaseType": "AAB"
+    }
   },
   "plugins": {
     "FirebaseAuthentication": {
@@ -20,10 +22,32 @@
       "providers": ["google.com", "apple.com"]
     },
     "SplashScreen": {
-      "launchShowDuration": 3000,
+      "launchShowDuration": 2000,
       "backgroundColor": "#000000",
       "androidSplashResourceName": "splash",
-      "showSpinner": false
+      "showSpinner": false,
+      "launchAutoHide": true
+    },
+    "PushNotifications": {
+      "presentationOptions": ["badge", "sound", "alert"]
+    },
+    "LocalNotifications": {
+      "smallIcon": "ic_stat_icon_config_sample",
+      "iconColor": "#7C3AED"
+    },
+    "StatusBar": {
+      "style": "Dark",
+      "backgroundColor": "#000000"
+    },
+    "Keyboard": {
+      "resize": "body",
+      "resizeOnFullScreen": true
+    },
+    "Camera": {
+      "presentationStyle": "popover"
+    },
+    "App": {
+      "allowNavigation": ["felcin.com", "www.felcin.com"]
     }
   }
 }

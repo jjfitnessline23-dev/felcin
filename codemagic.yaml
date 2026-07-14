@@ -477,7 +477,7 @@
       java: 21
       node: latest
       vars:
-        PACKAGE_NAME: app.felcin.social
+        PACKAGE_NAME: com.felcin.app
     scripts:
       - name: Write Google Play credentials
         script: |
@@ -631,22 +631,21 @@
           echo "=== Static bundle ready at /tmp/felcin-next/out ==="
           ls /tmp/felcin-next/out/ | head -10
 
-      - name: Patch capacitor.config.json for live URL mode
+      - name: Patch capacitor.config.json for bundled static build
         script: |
           python3 << 'PYEOF'
           import json
           with open('capacitor.config.json', 'r') as f:
               config = json.load(f)
+          # Point webDir at the static export — files get bundled into the APK/AAB
           config['webDir'] = '/tmp/felcin-next/out'
-          config['server'] = {
-              'url': 'https://www.felcin.com',
-              'cleartext': False
-          }
+          # Remove server.url so the app loads from bundled assets, not the live URL
+          config.pop('server', None)
           with open('capacitor.config.json', 'w') as f:
               json.dump(config, f, indent=2)
           print('capacitor.config.json patched:')
           print(f"  webDir: {config['webDir']}")
-          print(f"  server: {json.dumps(config['server'])}")
+          print('  server.url removed — app is fully self-contained')
           PYEOF
 
       - name: Install npm dependencies
@@ -740,7 +739,7 @@
           from googleapiclient.discovery import build
           from googleapiclient.http import MediaFileUpload
 
-          PACKAGE   = 'app.felcin.social'
+          PACKAGE   = 'com.felcin.app'
           AAB       = 'android/app/build/outputs/bundle/release/app-release.aab'
           CREDS     = '/tmp/gp-credentials.json'
           TRACK     = 'production'
