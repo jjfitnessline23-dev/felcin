@@ -631,6 +631,19 @@
           echo "=== Static bundle ready at /tmp/felcin-next/out ==="
           ls /tmp/felcin-next/out/ | head -10
 
+          echo "=== Patching relative /api/ calls to use absolute Vercel URL ==="
+          # Without server.url, fetch('/api/...') hits http://localhost/api/... on device.
+          # Replace all occurrences in compiled JS so payments and server calls still reach Vercel.
+          find out/_next/static/chunks -name '*.js' | xargs \
+            sed -i 's|fetch("/api/|fetch("https://www.felcin.com/api/|g'
+          find out/_next/static/chunks -name '*.js' | xargs \
+            sed -i "s|fetch('/api/|fetch('https://www.felcin.com/api/|g"
+          # Also patch any template-literal or concatenated paths starting with /api/
+          find out/_next/static/chunks -name '*.js' | xargs \
+            sed -i 's|`/api/|`https://www.felcin.com/api/|g'
+          PATCHED=$(grep -rl 'felcin.com/api/' out/_next/static/chunks | wc -l)
+          echo "  Patched $PATCHED JS chunk file(s)"
+
       - name: Patch capacitor.config.json for bundled static build
         script: |
           python3 << 'PYEOF'
