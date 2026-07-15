@@ -752,7 +752,7 @@
 
       - name: Publish to Google Play
         script: |
-          set +e
+          set -e
           echo "=== Installing Google API client ==="
           pip3 install --quiet google-auth google-api-python-client
 
