@@ -633,14 +633,13 @@
 
           echo "=== Patching relative /api/ calls to use absolute Vercel URL ==="
           # Without server.url, fetch('/api/...') hits http://localhost/api/... on device.
-          # Replace all occurrences in compiled JS so payments and server calls still reach Vercel.
+          # Use perl -i -pe (cross-platform) instead of sed -i which requires '' on macOS BSD sed.
           find out/_next/static/chunks -name '*.js' | xargs \
-            sed -i 's|fetch("/api/|fetch("https://www.felcin.com/api/|g'
+            perl -i -pe 's|fetch\("/api/|fetch("https://www.felcin.com/api/|g'
           find out/_next/static/chunks -name '*.js' | xargs \
-            sed -i "s|fetch('/api/|fetch('https://www.felcin.com/api/|g"
-          # Also patch any template-literal or concatenated paths starting with /api/
+            perl -i -pe "s|fetch\\('/api/|fetch('https://www.felcin.com/api/|g"
           find out/_next/static/chunks -name '*.js' | xargs \
-            sed -i 's|`/api/|`https://www.felcin.com/api/|g'
+            perl -i -pe 's|\`/api/|\`https://www.felcin.com/api/|g'
           PATCHED=$(grep -rl 'felcin.com/api/' out/_next/static/chunks | wc -l)
           echo "  Patched $PATCHED JS chunk file(s)"
 
