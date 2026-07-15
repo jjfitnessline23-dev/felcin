@@ -391,7 +391,7 @@
             DEVELOPMENT_TEAM=UWSVWR4VTX \
             CODE_SIGN_STYLE=Manual \
             CODE_SIGN_IDENTITY="Apple Distribution" \
-            MARKETING_VERSION=1.3 \
+            MARKETING_VERSION=1.4 \
             CURRENT_PROJECT_VERSION=$BUILD_NUMBER
 
           echo "=== Verifying xcarchive was created ==="
@@ -754,7 +754,7 @@
           PACKAGE   = 'com.felcin.app'
           AAB       = 'android/app/build/outputs/bundle/release/app-release.aab'
           CREDS     = '/tmp/gp-credentials.json'
-          TRACK     = 'production'
+          TRACK     = 'internal'
 
           print(f'Loading credentials from {CREDS}...')
           creds = service_account.Credentials.from_service_account_file(
