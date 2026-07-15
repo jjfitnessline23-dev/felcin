@@ -708,7 +708,8 @@
           BUILD_NO=$(( ${BUILD_NUMBER:-1} + 200 ))
           sed -i '' "s/versionCode [0-9]*/versionCode $BUILD_NO/" android/app/build.gradle
           sed -i '' "s/versionName \"[^\"]*\"/versionName \"2.0\"/" android/app/build.gradle
-          echo "versionCode=$BUILD_NO versionName=2.0"
+          sed -i '' "s/applicationId \"com\.felcin\.app\"/applicationId \"app.felcin.social\"/" android/app/build.gradle
+          echo "versionCode=$BUILD_NO versionName=2.0 applicationId=app.felcin.social"
 
       - name: Replace app icon with Felcin ghost logo
         script: |
@@ -766,7 +767,7 @@
           from googleapiclient.discovery import build
           from googleapiclient.http import MediaFileUpload
 
-          PACKAGE   = 'com.felcin.app'
+          PACKAGE   = 'app.felcin.social'
           AAB       = 'android/app/build/outputs/bundle/release/app-release.aab'
           CREDS     = '/tmp/gp-credentials.json'
           TRACK     = 'internal'
