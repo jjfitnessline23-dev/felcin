@@ -613,6 +613,15 @@
                   print('  Wrapped: ' + page)
               else:
                   print('  Skipped: ' + page)
+          # user-profile: generateMetadata uses searchParams which breaks static export.
+          # Replace with a simple wrapper — SEO metadata isn't needed in the Capacitor bundle.
+          up = 'app/(protected)/user-profile/page.tsx'
+          if os.path.isfile(up):
+              open(up, 'w').write(
+                  'import PageClient from "./PageClient";\n'
+                  'export default function Page() { return <PageClient />; }\n'
+              )
+              print('  Patched: ' + up)
           print('All patches applied.')
           PYEOF
 
