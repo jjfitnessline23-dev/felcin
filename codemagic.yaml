@@ -614,14 +614,20 @@
               else:
                   print('  Skipped: ' + page)
           # user-profile: generateMetadata uses searchParams which breaks static export.
-          # Replace with a simple wrapper — SEO metadata isn't needed in the Capacitor bundle.
+          # Strip only the generateMetadata function — keeps the rest of page.tsx intact
+          # so we don't need to assume PageClient.tsx exists in whichever repo version is cloned.
+          import re as _re
           up = 'app/(protected)/user-profile/page.tsx'
           if os.path.isfile(up):
-              open(up, 'w').write(
-                  'import PageClient from "./PageClient";\n'
-                  'export default function Page() { return <PageClient />; }\n'
+              content = open(up).read()
+              content = _re.sub(
+                  r'export async function generateMetadata\b.*?\n\}',
+                  '',
+                  content,
+                  flags=_re.DOTALL
               )
-              print('  Patched: ' + up)
+              open(up, 'w').write(content)
+              print('  Patched: ' + up + ' (stripped generateMetadata)')
           print('All patches applied.')
           PYEOF
 
