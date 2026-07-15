@@ -457,11 +457,7 @@
             --output-format json
 
     triggering:
-      events:
-        - push
-      branch_patterns:
-        - pattern: master
-          include: true
+      events: []
 
     artifacts:
       - build/ios/ipa/*.ipa
