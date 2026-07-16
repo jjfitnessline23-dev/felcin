@@ -16,125 +16,22 @@
         XCODE_WORKSPACE: ios/App/App.xcworkspace
         XCODE_SCHEME: App
     scripts:
-      - name: Build felcin-next static web bundle
-        script: |
-          set -e
-          echo "=== Cloning felcin-next ==="
-          git clone https://github.com/jjfitnessline23-dev/felcin-next.git /tmp/felcin-next
-          cd /tmp/felcin-next
-
-          echo "=== Installing dependencies ==="
-          npm install --legacy-peer-deps
-
-          echo "=== Patching felcin-next for static export ==="
-          python3 << 'PYEOF'
-          import os
-          for root, dirs, files in os.walk('app/api'):
-              for f in files:
-                  if f == 'route.ts':
-                      p = os.path.join(root, f)
-                      c = open(p).read()
-                      nc = c.replace("'force-dynamic'", "'force-static'").replace('"force-dynamic"', '"force-static"')
-                      if nc != c:
-                          open(p, 'w').write(nc)
-                          print('  API patched: ' + p)
-          dynamic_routes = [
-              ('app/(protected)/challenges/[id]/page.tsx', 'id'),
-              ('app/(protected)/ghost/[id]/page.tsx', 'id'),
-              ('app/(protected)/live/[id]/page.tsx', 'id'),
-              ('app/(protected)/podcasts/[id]/page.tsx', 'id'),
-              ('app/(protected)/podcasts/live/[id]/page.tsx', 'id'),
-              ('app/(protected)/subscribe/[uid]/page.tsx', 'uid'),
-              ('app/(protected)/tag/[name]/page.tsx', 'name'),
-              ('app/(protected)/trainers/[uid]/page.tsx', 'uid'),
-              ('app/(protected)/training-sessions/[sessionId]/page.tsx', 'sessionId'),
-          ]
-          for path, key in dynamic_routes:
-              if os.path.isfile(path):
-                  c = ('import { Suspense } from "react";\nimport PageClient from "./PageClient";\n\n'
-                       'export function generateStaticParams() { return [{ ' + key + ': "_" }]; }\n'
-                       'export const dynamicParams = false;\n\n'
-                       'export default function Page() { return <Suspense fallback={null}><PageClient /></Suspense>; }\n')
-                  open(path, 'w').write(c)
-                  print('  Patched: ' + path)
-              else:
-                  print('  Skipped: ' + path)
-          sp = [
-              'app/(protected)/advertise/page.tsx',
-              'app/(protected)/badges/page.tsx',
-              'app/(protected)/comments/page.tsx',
-              'app/(protected)/creator/page.tsx',
-              'app/(protected)/earnings/page.tsx',
-              'app/(protected)/explore/page.tsx',
-              'app/(protected)/page.tsx',
-              'app/(protected)/private-chats/page.tsx',
-              'app/(protected)/training-sessions/page.tsx',
-          ]
-          w = ('import { Suspense } from "react";\nimport PageContent from "./page.content";\n'
-               'export default function Page() { return <Suspense fallback={null}><PageContent /></Suspense>; }\n')
-          for page in sp:
-              if os.path.isfile(page):
-                  cp = os.path.join(os.path.dirname(page), 'page.content.tsx')
-                  os.rename(page, cp)
-                  open(page, 'w').write(w)
-                  print('  Wrapped: ' + page)
-              else:
-                  print('  Skipped: ' + page)
-          import re as _re
-          up = 'app/(protected)/user-profile/page.tsx'
-          if os.path.isfile(up):
-              content = open(up).read()
-              content = _re.sub(
-                  r'export async function generateMetadata\b.*?\n\}',
-                  '',
-                  content,
-                  flags=_re.DOTALL
-              )
-              open(up, 'w').write(content)
-              print('  Patched: ' + up + ' (stripped generateMetadata)')
-          print('All patches applied.')
-          PYEOF
-
-          echo "=== Building static export ==="
-          NEXT_PUBLIC_CAPACITOR_BUILD=true \
-          NEXT_PUBLIC_API_URL="https://www.felcin.com" \
-          NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY="${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY:-pk_test_51TeacHFq0Nd4lLkFwHZ7nutFk0jI0H4bmtffnaI92is7ym5KEVuXmppnVMgQhC9qP39zBhgzOukNYUE4yvtiwa0I00CycqtIbo}" \
-          npm run build
-
-          if [ ! -f "out/index.html" ]; then
-            echo "ERROR: out/index.html not found — static build failed"
-            ls -la out/ 2>/dev/null || echo "out/ directory does not exist"
-            exit 1
-          fi
-
-          echo "=== Static bundle ready at /tmp/felcin-next/out ==="
-          ls /tmp/felcin-next/out/ | head -10
-
-          echo "=== Patching relative /api/ calls to use absolute Vercel URL ==="
-          find out/_next/static/chunks -name '*.js' | xargs \
-            perl -i -pe 's|fetch\("/api/|fetch("https://www.felcin.com/api/|g'
-          find out/_next/static/chunks -name '*.js' | xargs \
-            perl -i -pe "s|fetch\\('/api/|fetch('https://www.felcin.com/api/|g"
-          find out/_next/static/chunks -name '*.js' | xargs \
-            perl -i -pe 's|\`/api/|\`https://www.felcin.com/api/|g'
-          PATCHED=$(grep -rl 'felcin.com/api/' out/_next/static/chunks | wc -l)
-          echo "  Patched $PATCHED JS chunk file(s)"
-
-      - name: Patch capacitor.config.json for bundled static build
+      - name: Patch capacitor.config.json for live URL mode
         script: |
           python3 << 'PYEOF'
           import json
           with open('capacitor.config.json', 'r') as f:
               config = json.load(f)
           config['appId'] = 'com.felcin.app'
-          config['webDir'] = '/tmp/felcin-next/out'
-          config.pop('server', None)
+          config['server'] = {
+              'url': 'https://www.felcin.com',
+              'cleartext': False
+          }
           with open('capacitor.config.json', 'w') as f:
               json.dump(config, f, indent=2)
           print('capacitor.config.json patched:')
           print(f"  appId: {config['appId']}")
-          print(f"  webDir: {config['webDir']}")
-          print('  server.url removed — app is fully self-contained')
+          print(f"  server: {json.dumps(config['server'])}")
           PYEOF
 
       - name: Install npm dependencies
