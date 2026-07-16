@@ -121,12 +121,21 @@
           config['appId'] = 'com.felcin.app'
           config['webDir'] = '/tmp/felcin-next/out'
           config.pop('server', None)
+          # CRITICAL: disable limitsNavigationsToAppBoundDomains for bundled builds.
+          # With the custom felcin:// scheme, WKAppBoundDomains blocks cross-origin
+          # fetch to Firebase servers (googleapis.com etc) — requests hang with network,
+          # only fail-fast without it (airplane mode). Live-URL builds are fine because
+          # felcin.com is a proper HTTP domain. Bundled builds must disable this.
+          if 'ios' not in config:
+              config['ios'] = {}
+          config['ios']['limitsNavigationsToAppBoundDomains'] = False
           with open('capacitor.config.json', 'w') as f:
               json.dump(config, f, indent=2)
           print('capacitor.config.json patched:')
           print(f"  appId : {config['appId']}")
           print(f"  webDir: {config['webDir']}")
           print('  server.url removed — self-contained bundle')
+          print('  limitsNavigationsToAppBoundDomains = False')
           PYEOF
 
       - name: Install npm dependencies
@@ -257,12 +266,6 @@
 
               func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
                   FirebaseApp.configure()
-                  // Clear HTTP cache on every launch so the app always loads the latest web code
-                  URLCache.shared.removeAllCachedResponses()
-                  WKWebsiteDataStore.default().removeData(
-                      ofTypes: [WKWebsiteDataTypeDiskCache, WKWebsiteDataTypeMemoryCache],
-                      modifiedSince: Date.distantPast
-                  ) { }
                   return true
               }
 
