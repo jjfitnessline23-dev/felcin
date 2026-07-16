@@ -84,12 +84,20 @@
               else:
                   print('  Skipped: ' + page)
 
+          # user-profile: Replace the entire page.tsx with a Suspense wrapper.
+          # generateMetadata uses async searchParams (breaks static export) AND
+          # PageClient uses useSearchParams directly — Next.js requires a Suspense
+          # boundary in the page hierarchy or the static build exits with an error.
           up = 'app/(protected)/user-profile/page.tsx'
           if os.path.isfile(up):
-              content = open(up).read()
-              content = _re.sub(r'export async function generateMetadata\b.*?\n\}', '', content, flags=_re.DOTALL)
-              open(up, 'w').write(content)
-              print('  Patched: ' + up)
+              open(up, 'w').write(
+                  'import { Suspense } from "react";\n'
+                  'import PageClient from "./PageClient";\n\n'
+                  'export default function Page() {\n'
+                  '  return <Suspense fallback={null}><PageClient /></Suspense>;\n'
+                  '}\n'
+              )
+              print('  Replaced: ' + up + ' (Suspense wrapper, removed generateMetadata)')
 
           print('All patches done.')
           PYEOF
@@ -104,13 +112,18 @@
             echo "ERROR: out/index.html not found — static build failed"
             exit 1
           fi
-          echo "=== Bundle ready: $(find out -name '*.html' | wc -l) HTML pages ==="
+          PAGE_COUNT=$(find out -name '*.html' | wc -l)
+          echo "=== Bundle ready: $PAGE_COUNT HTML pages ==="
+          if [ "$PAGE_COUNT" -lt 20 ]; then
+            echo "WARNING: fewer pages than expected — some routes may have failed to export"
+          fi
 
           echo "=== Patching /api/ calls to absolute Vercel URL ==="
           find out/_next/static/chunks -name '*.js' | xargs perl -i -pe 's|fetch\("/api/|fetch("https://www.felcin.com/api/|g'
           find out/_next/static/chunks -name '*.js' | xargs perl -i -pe "s|fetch\\('/api/|fetch('https://www.felcin.com/api/|g"
           find out/_next/static/chunks -name '*.js' | xargs perl -i -pe 's|\`/api/|\`https://www.felcin.com/api/|g'
-          echo "  Done"
+          PATCHED=$(grep -rl 'felcin.com/api/' out/_next/static/chunks | wc -l)
+          echo "  Patched $PATCHED JS chunk file(s)"
 
       - name: Patch capacitor.config.json — bundled mode
         script: |
@@ -713,21 +726,20 @@
                   print('  Wrapped: ' + page)
               else:
                   print('  Skipped: ' + page)
-          # user-profile: generateMetadata uses searchParams which breaks static export.
-          # Strip only the generateMetadata function — keeps the rest of page.tsx intact
-          # so we don't need to assume PageClient.tsx exists in whichever repo version is cloned.
-          import re as _re
+          # user-profile: Replace the entire page.tsx with a Suspense wrapper.
+          # generateMetadata uses async searchParams (breaks static export) AND
+          # PageClient uses useSearchParams directly — Next.js requires a Suspense
+          # boundary in the page hierarchy or the static build exits with an error.
           up = 'app/(protected)/user-profile/page.tsx'
           if os.path.isfile(up):
-              content = open(up).read()
-              content = _re.sub(
-                  r'export async function generateMetadata\b.*?\n\}',
-                  '',
-                  content,
-                  flags=_re.DOTALL
+              open(up, 'w').write(
+                  'import { Suspense } from "react";\n'
+                  'import PageClient from "./PageClient";\n\n'
+                  'export default function Page() {\n'
+                  '  return <Suspense fallback={null}><PageClient /></Suspense>;\n'
+                  '}\n'
               )
-              open(up, 'w').write(content)
-              print('  Patched: ' + up + ' (stripped generateMetadata)')
+              print('  Replaced: ' + up + ' (Suspense wrapper, removed generateMetadata)')
           print('All patches applied.')
           PYEOF
 
