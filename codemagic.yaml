@@ -1,4 +1,5 @@
-﻿workflows:
+workflows:
+
   ios-app-store:
     name: Felcin iOS - App Store
     max_build_duration: 120
@@ -15,171 +16,274 @@
         BUNDLE_ID: com.felcin.app
         XCODE_WORKSPACE: ios/App/App.xcworkspace
         XCODE_SCHEME: App
+
     scripts:
-      - name: Patch capacitor.config.json for live URL
+
+      - name: Build static web bundle
+        script: |
+          set -e
+          git clone https://github.com/jjfitnessline23-dev/felcin-next.git /tmp/felcin-next
+          cd /tmp/felcin-next
+          npm install --legacy-peer-deps
+
+          python3 << 'PYEOF'
+          import os, re
+
+          for root, dirs, files in os.walk('app/api'):
+              for f in files:
+                  if f == 'route.ts':
+                      p = os.path.join(root, f)
+                      c = open(p).read()
+                      nc = c.replace("'force-dynamic'","'force-static'").replace('"force-dynamic"','"force-static"')
+                      if nc != c: open(p,'w').write(nc)
+
+          dynamic_routes = [
+              ('app/(protected)/challenges/[id]/page.tsx','id'),
+              ('app/(protected)/ghost/[id]/page.tsx','id'),
+              ('app/(protected)/live/[id]/page.tsx','id'),
+              ('app/(protected)/podcasts/[id]/page.tsx','id'),
+              ('app/(protected)/podcasts/live/[id]/page.tsx','id'),
+              ('app/(protected)/subscribe/[uid]/page.tsx','uid'),
+              ('app/(protected)/tag/[name]/page.tsx','name'),
+              ('app/(protected)/trainers/[uid]/page.tsx','uid'),
+              ('app/(protected)/training-sessions/[sessionId]/page.tsx','sessionId'),
+              ('app/(public)/run/live/[shareId]/page.tsx','shareId'),
+          ]
+          for path, key in dynamic_routes:
+              if os.path.isfile(path):
+                  open(path,'w').write(
+                      'import { Suspense } from "react";\nimport PageClient from "./PageClient";\n\n'
+                      'export function generateStaticParams() { return [{ '+key+': "_" }]; }\n'
+                      'export const dynamicParams = false;\n\n'
+                      'export default function Page() { return <Suspense fallback={null}><PageClient /></Suspense>; }\n'
+                  )
+
+          suspense_pages = [
+              'app/(protected)/advertise/page.tsx',
+              'app/(protected)/badges/page.tsx',
+              'app/(protected)/comments/page.tsx',
+              'app/(protected)/creator/page.tsx',
+              'app/(protected)/earnings/page.tsx',
+              'app/(protected)/explore/page.tsx',
+              'app/(protected)/page.tsx',
+              'app/(protected)/private-chats/page.tsx',
+              'app/(protected)/training-sessions/page.tsx',
+          ]
+          for page in suspense_pages:
+              if os.path.isfile(page):
+                  cp = os.path.join(os.path.dirname(page),'page.content.tsx')
+                  os.rename(page, cp)
+                  open(page,'w').write(
+                      'import { Suspense } from "react";\nimport PageContent from "./page.content";\n'
+                      'export default function Page() { return <Suspense fallback={null}><PageContent /></Suspense>; }\n'
+                  )
+
+          up = 'app/(protected)/user-profile/page.tsx'
+          if os.path.isfile(up):
+              content = open(up).read()
+              content = re.sub(r'export async function generateMetadata\b.*?\n\}','',content,flags=re.DOTALL)
+              content = re.sub(r'async function fetchUserProfile\b.*?\n\}','',content,flags=re.DOTALL)
+              content = content.replace('import type { Metadata } from "next";\n','')
+              if 'Suspense' not in content:
+                  content = content.replace('import PageClient from "./PageClient";',
+                      'import { Suspense } from "react";\nimport PageClient from "./PageClient";')
+              content = content.replace('return <PageClient />;','return <Suspense fallback={null}><PageClient /></Suspense>;')
+              open(up,'w').write(content)
+          PYEOF
+
+          NEXT_PUBLIC_CAPACITOR_BUILD=true \
+          NEXT_PUBLIC_API_URL="https://www.felcin.com" \
+          NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY="${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY:-pk_test_51TeacHFq0Nd4lLkFwHZ7nutFk0jI0H4bmtffnaI92is7ym5KEVuXmppnVMgQhC9qP39zBhgzOukNYUE4yvtiwa0I00CycqtIbo}" \
+          npm run build
+
+          [ -f "out/index.html" ] || { echo "ERROR: static build failed"; exit 1; }
+          echo "Pages: $(find out -name '*.html' | wc -l)"
+
+          find out/_next/static/chunks -name '*.js' | xargs perl -i -pe 's|fetch\("/api/|fetch("https://www.felcin.com/api/|g'
+          find out/_next/static/chunks -name '*.js' | xargs perl -i -pe "s|fetch\\('/api/|fetch('https://www.felcin.com/api/|g"
+          find out/_next/static/chunks -name '*.js' | xargs perl -i -pe 's|\`/api/|\`https://www.felcin.com/api/|g'
+
+      - name: Patch capacitor.config.json
         script: |
           python3 << 'PYEOF'
           import json
-          with open('capacitor.config.json', 'r') as f:
-              config = json.load(f)
-          config['appId'] = 'com.felcin.app'
-          config['server'] = {'url': 'https://www.felcin.com', 'cleartext': False}
-          if 'ios' not in config:
-              config['ios'] = {}
-          config['ios'].pop('scheme', None)
-          config['ios']['limitsNavigationsToAppBoundDomains'] = False
-          with open('capacitor.config.json', 'w') as f:
-              json.dump(config, f, indent=2)
-          print('capacitor.config.json: live URL mode — app loads from https://www.felcin.com')
+          with open('capacitor.config.json') as f:
+              c = json.load(f)
+          c['appId'] = 'com.felcin.app'
+          c['webDir'] = '/tmp/felcin-next/out'
+          c.pop('server', None)
+          c.setdefault('ios', {})
+          c['ios'].pop('scheme', None)
+          c['ios']['limitsNavigationsToAppBoundDomains'] = False
+          with open('capacitor.config.json','w') as f:
+              json.dump(c, f, indent=2)
+          print('capacitor.config.json: bundled mode')
           PYEOF
 
-      - name: Install npm dependencies
+      - name: Install dependencies
         script: |
           npm install --legacy-peer-deps
           npm install @capacitor-firebase/firestore --legacy-peer-deps 2>/dev/null || true
+          npm install -g @capacitor/cli
 
-      - name: Install Capacitor CLI
-        script: npm install -g @capacitor/cli
-
-      - name: Add iOS platform
+      - name: Add iOS platform (fresh)
         script: |
-          if [ ! -d "ios" ]; then
-            npx cap add ios || true
-          fi
+          rm -rf ios
+          npx cap add ios
 
-      - name: Patch Podfile deployment target to 16.0
+      - name: Set deployment target to 16.0
         script: |
           python3 << 'PYEOF'
-          import re, os, sys
+          import re
           path = 'ios/App/Podfile'
-          if not os.path.exists(path):
-              print('ERROR: Podfile not found', file=sys.stderr)
-              sys.exit(1)
           content = open(path).read()
           content = re.sub(r"platform :ios, '[0-9.]+'", "platform :ios, '16.0'", content)
-          open(path, 'w').write(content)
-          print('Podfile deployment target patched to 16.0')
+          open(path,'w').write(content)
           PYEOF
 
-      - name: Run pod install
+      - name: Pod install
         script: cd ios/App && pod install
 
       - name: Capacitor sync
         script: npx cap sync ios
 
-      - name: Add GoogleService-Info.plist
+      - name: Configure GoogleService-Info.plist and Info.plist
         script: |
-          # Copy plist from repo into iOS app directory
           cp GoogleService-Info.plist ios/App/App/GoogleService-Info.plist
-          echo "Plist copied. BUNDLE_ID: $(/usr/libexec/PlistBuddy -c 'Print :BUNDLE_ID' ios/App/App/GoogleService-Info.plist)"
 
-          # Add plist to Xcode project so it's bundled into the app
           gem install xcodeproj --quiet 2>/dev/null || true
           ruby << 'RUBYEOF'
           require 'xcodeproj'
           project = Xcodeproj::Project.open('ios/App/App.xcodeproj')
           app_group = project.main_group['App']
           unless app_group.find_file_by_path('GoogleService-Info.plist')
-            file_ref = app_group.new_file('GoogleService-Info.plist')
-            file_ref.last_known_file_type = 'text.plist.xml'
-            project.targets.first.resources_build_phase.add_file_reference(file_ref)
+            ref = app_group.new_file('GoogleService-Info.plist')
+            ref.last_known_file_type = 'text.plist.xml'
+            project.targets.first.resources_build_phase.add_file_reference(ref)
             project.save
-            puts 'GoogleService-Info.plist added to Xcode project'
-          else
-            puts 'GoogleService-Info.plist already present in project'
           end
           RUBYEOF
 
-          # Extract REVERSED_CLIENT_ID and register it as a URL scheme (required for Google Sign-In)
           REVERSED_CLIENT_ID=$(/usr/libexec/PlistBuddy -c "Print :REVERSED_CLIENT_ID" ios/App/App/GoogleService-Info.plist)
-          echo "Registering URL scheme: $REVERSED_CLIENT_ID"
           export REVERSED_CLIENT_ID
+
           python3 << 'PYEOF'
           import os, plistlib
-          reversed_id = os.environ['REVERSED_CLIENT_ID']
           plist_path = 'ios/App/App/Info.plist'
-          with open(plist_path, 'rb') as f:
+          with open(plist_path,'rb') as f:
               plist = plistlib.load(f)
-          url_types = plist.get('CFBundleURLTypes', [])
-          url_types = [u for u in url_types if u.get('CFBundleURLName') != 'GoogleSignIn']
-          url_types.append({'CFBundleURLName': 'GoogleSignIn', 'CFBundleURLSchemes': [reversed_id]})
+
+          rid = os.environ['REVERSED_CLIENT_ID']
+          url_types = [u for u in plist.get('CFBundleURLTypes',[]) if u.get('CFBundleURLName') != 'GoogleSignIn']
+          url_types.append({'CFBundleURLName':'GoogleSignIn','CFBundleURLSchemes':[rid]})
           plist['CFBundleURLTypes'] = url_types
-          # Location permission strings — required for iOS to show "While Using" dialog
+
           plist['NSLocationWhenInUseUsageDescription'] = 'Felcin uses your location to track your running routes live on the map and save your PRs.'
           plist['NSLocationAlwaysAndWhenInUseUsageDescription'] = 'Felcin uses your location to track running routes and show your position on the map.'
-          with open(plist_path, 'wb') as f:
+          plist.setdefault('NSCameraUsageDescription', 'Felcin needs camera access to take photos and videos for posts and stories.')
+          plist.setdefault('NSMicrophoneUsageDescription', 'Felcin needs microphone access to record audio for videos.')
+          plist.setdefault('NSPhotoLibraryUsageDescription', 'Felcin needs photo library access to share photos and videos.')
+          plist.setdefault('NSPhotoLibraryAddUsageDescription', 'Felcin needs permission to save photos and videos to your library.')
+          plist['ITSAppUsesNonExemptEncryption'] = False
+
+          with open(plist_path,'wb') as f:
               plistlib.dump(plist, f, fmt=plistlib.FMT_XML)
-          print(f'URL scheme registered: {reversed_id}')
-          print('Location permission keys added to Info.plist')
+          print(f'Info.plist configured')
           PYEOF
 
-      - name: Set app icon and splash screen
+      - name: Set app icon and black launch screen
         script: |
-          ICON_SRC="ios-icons"
-          ICON_DEST="ios/App/App/Assets.xcassets/AppIcon.appiconset"
-          echo "Copying custom app icons..."
-          cp "$ICON_SRC"/*.png "$ICON_DEST/"
-          cp "$ICON_SRC/Contents.json" "$ICON_DEST/Contents.json"
-          echo "Icons installed:"
-          ls "$ICON_DEST"
+          cp ios-icons/*.png ios/App/App/Assets.xcassets/AppIcon.appiconset/
+          cp ios-icons/Contents.json ios/App/App/Assets.xcassets/AppIcon.appiconset/Contents.json
 
-          # Patch launch screen background to black — eliminates white flash on app launch
           python3 << 'PYEOF'
           import re
           path = 'ios/App/App/Base.lproj/LaunchScreen.storyboard'
-          with open(path, 'r') as f:
-              content = f.read()
+          content = open(path).read()
           content = re.sub(
               r'<color key="backgroundColor"[^/]*/?>',
               '<color key="backgroundColor" red="0.0" green="0.0" blue="0.0" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>',
               content
           )
-          with open(path, 'w') as f:
-              f.write(content)
-          print('LaunchScreen background set to black')
+          open(path,'w').write(content)
           PYEOF
 
-      - name: Patch WebView dark background and camera permissions
+      - name: Patch ViewController.swift
         script: |
-          SWIFT_FILE="ios/App/App/ViewController.swift"
-          cat > "$SWIFT_FILE" << SWIFTEOF
+          cat > "ios/App/App/ViewController.swift" << 'SWIFTEOF'
           import UIKit
           import Capacitor
           import WebKit
 
           class ViewController: CAPBridgeViewController {
+
               override func viewDidLoad() {
                   super.viewDidLoad()
-                  self.view.backgroundColor = UIColor.black
-                  self.webView?.isOpaque = false
-                  self.webView?.backgroundColor = UIColor.black
-                  self.webView?.scrollView.backgroundColor = UIColor.black
+                  view.backgroundColor = UIColor.black
+                  webView?.isOpaque = false
+                  webView?.backgroundColor = UIColor.black
+                  webView?.scrollView.backgroundColor = UIColor.black
+
+                  // Block IndexedDB before ANY page JavaScript runs.
+                  // @firebase/app heartbeat service calls indexedDB.open() on startup.
+                  // On capacitor:// scheme + active network, this triggers a WKWebView bug
+                  // that deadlocks ALL JS async callbacks (Promises, setTimeout) forever.
+                  // WKUserScript at .atDocumentStart is injected by WebKit itself before
+                  // any <script> tags execute — guaranteed to run first, cannot be blocked.
+                  let blockIDB = WKUserScript(
+                      source: """
+                      (function() {
+                        try {
+                          var fakeReq = function() {
+                            var r = new EventTarget();
+                            r.result = null;
+                            r.readyState = 'done';
+                            r.onsuccess = null; r.onerror = null;
+                            r.onblocked = null; r.onupgradeneeded = null;
+                            r.error = new DOMException('IndexedDB blocked','SecurityError');
+                            setTimeout(function(){
+                              var e = new Event('error');
+                              if (typeof r.onerror === 'function') r.onerror(e);
+                              r.dispatchEvent(e);
+                            }, 0);
+                            return r;
+                          };
+                          if (window.IDBFactory) {
+                            IDBFactory.prototype.open = fakeReq;
+                            IDBFactory.prototype.deleteDatabase = fakeReq;
+                          }
+                          try { window.indexedDB.open = fakeReq; } catch(e) {}
+                        } catch(e) {}
+                      })();
+                      """,
+                      injectionTime: .atDocumentStart,
+                      forMainFrameOnly: true
+                  )
+                  webView?.configuration.userContentController.addUserScript(blockIDB)
               }
+
               override func capacitorDidLoad() {
-                  self.webView?.isOpaque = false
-                  self.webView?.backgroundColor = UIColor.black
-                  self.webView?.scrollView.backgroundColor = UIColor.black
+                  webView?.isOpaque = false
+                  webView?.backgroundColor = UIColor.black
+                  webView?.scrollView.backgroundColor = UIColor.black
               }
+
               @available(iOS 15.0, *)
               override func webView(_ webView: WKWebView, requestMediaCapturePermissionFor origin: WKSecurityOrigin, initiatedByFrame frame: WKFrameInfo, type: WKMediaCaptureType, decisionHandler: @escaping (WKPermissionDecision) -> Void) {
                   decisionHandler(.grant)
               }
           }
           SWIFTEOF
-          echo "ViewController.swift patched"
 
-      - name: Patch AppDelegate to initialize Firebase
+      - name: Patch AppDelegate.swift
         script: |
-          APPDELEGATE="ios/App/App/AppDelegate.swift"
-          cat > "$APPDELEGATE" << 'SWIFTEOF'
+          cat > "ios/App/App/AppDelegate.swift" << 'SWIFTEOF'
           import UIKit
           import Capacitor
           import FirebaseCore
-          import WebKit
 
           @UIApplicationMain
           class AppDelegate: UIResponder, UIApplicationDelegate {
-
               var window: UIWindow?
 
               func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
@@ -196,213 +300,101 @@
               }
           }
           SWIFTEOF
-          echo "AppDelegate.swift patched with FirebaseApp.configure() and cache clearing"
 
-      - name: Restrict to iPhone only
+      - name: iPhone only
         script: |
-          PBXPROJ="ios/App/App.xcodeproj/project.pbxproj"
-          perl -i -pe 's/TARGETED_DEVICE_FAMILY = "1,2";/TARGETED_DEVICE_FAMILY = 1;/g' "$PBXPROJ"
-          perl -i -pe 's/TARGETED_DEVICE_FAMILY = 1,2;/TARGETED_DEVICE_FAMILY = 1;/g' "$PBXPROJ"
-          echo "TARGETED_DEVICE_FAMILY set to iPhone only:"
-          grep "TARGETED_DEVICE_FAMILY" "$PBXPROJ"
+          perl -i -pe 's/TARGETED_DEVICE_FAMILY = "1,2";/TARGETED_DEVICE_FAMILY = 1;/g' ios/App/App.xcodeproj/project.pbxproj
+          perl -i -pe 's/TARGETED_DEVICE_FAMILY = 1,2;/TARGETED_DEVICE_FAMILY = 1;/g' ios/App/App.xcodeproj/project.pbxproj
 
       - name: Set build number
         script: |
           /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $BUILD_NUMBER" ios/App/App/Info.plist
-          /usr/libexec/PlistBuddy -c "Add :ITSAppUsesNonExemptEncryption bool false" ios/App/App/Info.plist 2>/dev/null || \
-          /usr/libexec/PlistBuddy -c "Set :ITSAppUsesNonExemptEncryption false" ios/App/App/Info.plist
+          echo "Build: $BUILD_NUMBER"
 
-          /usr/libexec/PlistBuddy -c "Add :NSCameraUsageDescription string 'Felcin needs access to your camera to take photos and videos for posts and stories.'" ios/App/App/Info.plist 2>/dev/null || \
-          /usr/libexec/PlistBuddy -c "Set :NSCameraUsageDescription 'Felcin needs access to your camera to take photos and videos for posts and stories.'" ios/App/App/Info.plist
-
-          /usr/libexec/PlistBuddy -c "Add :NSMicrophoneUsageDescription string 'Felcin needs access to your microphone to record audio for videos.'" ios/App/App/Info.plist 2>/dev/null || \
-          /usr/libexec/PlistBuddy -c "Set :NSMicrophoneUsageDescription 'Felcin needs access to your microphone to record audio for videos.'" ios/App/App/Info.plist
-
-          /usr/libexec/PlistBuddy -c "Add :NSPhotoLibraryUsageDescription string 'Felcin needs access to your photo library to share photos and videos.'" ios/App/App/Info.plist 2>/dev/null || \
-          /usr/libexec/PlistBuddy -c "Set :NSPhotoLibraryUsageDescription 'Felcin needs access to your photo library to share photos and videos.'" ios/App/App/Info.plist
-
-          /usr/libexec/PlistBuddy -c "Add :NSPhotoLibraryAddUsageDescription string 'Felcin needs permission to save photos and videos to your library.'" ios/App/App/Info.plist 2>/dev/null || \
-          /usr/libexec/PlistBuddy -c "Set :NSPhotoLibraryAddUsageDescription 'Felcin needs permission to save photos and videos to your library.'" ios/App/App/Info.plist
-
-          # SKAdNetwork IDs required for Google Ads iOS app campaign attribution (iOS 14.5+)
-          /usr/libexec/PlistBuddy -c "Add :SKAdNetworkItems array" ios/App/App/Info.plist 2>/dev/null || true
-          /usr/libexec/PlistBuddy -c "Add :SKAdNetworkItems:0 dict" ios/App/App/Info.plist 2>/dev/null || true
-          /usr/libexec/PlistBuddy -c "Add :SKAdNetworkItems:0:SKAdNetworkIdentifier string cstr6suwn9.skadnetwork" ios/App/App/Info.plist 2>/dev/null || true
-          /usr/libexec/PlistBuddy -c "Add :SKAdNetworkItems:1 dict" ios/App/App/Info.plist 2>/dev/null || true
-          /usr/libexec/PlistBuddy -c "Add :SKAdNetworkItems:1:SKAdNetworkIdentifier string 4fzdc2evr5.skadnetwork" ios/App/App/Info.plist 2>/dev/null || true
-          /usr/libexec/PlistBuddy -c "Add :SKAdNetworkItems:2 dict" ios/App/App/Info.plist 2>/dev/null || true
-          /usr/libexec/PlistBuddy -c "Add :SKAdNetworkItems:2:SKAdNetworkIdentifier string 2fnua5tdw4.skadnetwork" ios/App/App/Info.plist 2>/dev/null || true
-          /usr/libexec/PlistBuddy -c "Add :SKAdNetworkItems:3 dict" ios/App/App/Info.plist 2>/dev/null || true
-          /usr/libexec/PlistBuddy -c "Add :SKAdNetworkItems:3:SKAdNetworkIdentifier string ydx93a7ass.skadnetwork" ios/App/App/Info.plist 2>/dev/null || true
-
-          echo "Build number set to: $BUILD_NUMBER"
-          echo "Permissions patched into Info.plist"
-
-      - name: Enable Google subspec in CapacitorFirebaseAuthentication
+      - name: Enable Google Sign-In subspec
         script: |
-          PODSPEC="node_modules/@capacitor-firebase/authentication/CapacitorFirebaseAuthentication.podspec"
-          echo "=== Podspec before patch ==="
-          grep "default_subspec" "$PODSPEC"
-          perl -i -pe "s/default_subspec = 'Lite'/default_subspec = 'Google'/" "$PODSPEC"
-          echo "=== Podspec after patch ==="
-          grep "default_subspec" "$PODSPEC"
+          perl -i -pe "s/default_subspec = 'Lite'/default_subspec = 'Google'/" \
+            node_modules/@capacitor-firebase/authentication/CapacitorFirebaseAuthentication.podspec
 
-      - name: Add Sign in with Apple entitlement and Associated Domains
+      - name: Add Sign in with Apple entitlement
         script: |
           python3 << 'PYEOF'
-          entitlements = """<?xml version="1.0" encoding="UTF-8"?>
+          open("ios/App/App/App.entitlements","w").write("""<?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-          <plist version="1.0">
-          <dict>
+          <plist version="1.0"><dict>
               <key>com.apple.developer.applesignin</key>
-              <array>
-                  <string>Default</string>
-              </array>
+              <array><string>Default</string></array>
               <key>com.apple.developer.associated-domains</key>
               <array>
                   <string>applinks:felcin.com</string>
                   <string>applinks:www.felcin.com</string>
               </array>
-          </dict>
-          </plist>"""
-          with open("ios/App/App/App.entitlements", "w") as f:
-              f.write(entitlements.strip())
-          print("App.entitlements written")
+          </dict></plist>""".strip())
           PYEOF
 
           gem install xcodeproj --quiet 2>/dev/null || true
           ruby -e "
           require 'xcodeproj'
-          project = Xcodeproj::Project.open('ios/App/App.xcodeproj')
-          project.targets.each do |target|
-            target.build_configurations.each do |config|
-              config.build_settings['CODE_SIGN_ENTITLEMENTS'] = 'App/App.entitlements'
-              puts \"Set CODE_SIGN_ENTITLEMENTS for #{target.name} - #{config.name}\"
-            end
-          end
-          project.save
-          puts 'Project saved'
+          p = Xcodeproj::Project.open('ios/App/App.xcodeproj')
+          p.targets.each{|t| t.build_configurations.each{|c| c.build_settings['CODE_SIGN_ENTITLEMENTS']='App/App.entitlements'}}
+          p.save
           "
 
-          echo "=== Verifying ==="
-          grep "CODE_SIGN_ENTITLEMENTS" ios/App/App.xcodeproj/project.pbxproj || echo "ERROR: not found!"
-
-      - name: Install CocoaPods
+      - name: Final pod install
         script: |
           cd ios/App
           rm -f Podfile.lock
           pod install --repo-update
 
-      - name: Set up signing
+      - name: Set up code signing
         script: |
-          echo "=== Checking env vars ==="
-          echo "DIST_CERT_P12 length: ${#DIST_CERT_P12}"
-          echo "PROVISIONING_PROFILE length: ${#PROVISIONING_PROFILE}"
-          echo "DIST_CERT_PASSWORD length: ${#DIST_CERT_PASSWORD}"
-
-          echo "=== Decoding certificate ==="
           echo "$DIST_CERT_P12" | base64 --decode > /tmp/distribution.p12
-          echo "p12 file size: $(wc -c < /tmp/distribution.p12) bytes"
 
-          echo "=== Setting up keychain ==="
-          KEYCHAIN_PATH=/tmp/app-signing.keychain-db
-          KEYCHAIN_PASS=codemagic123
-          security create-keychain -p "$KEYCHAIN_PASS" "$KEYCHAIN_PATH"
-          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
-          security unlock-keychain -p "$KEYCHAIN_PASS" "$KEYCHAIN_PATH"
-          security import /tmp/distribution.p12 -k "$KEYCHAIN_PATH" \
-            -P "$DIST_CERT_PASSWORD" -T /usr/bin/codesign -T /usr/bin/xcodebuild
-          security set-key-partition-list -S apple-tool:,apple: -s \
-            -k "$KEYCHAIN_PASS" "$KEYCHAIN_PATH"
-          security list-keychains -d user -s "$KEYCHAIN_PATH" \
-            ~/Library/Keychains/login.keychain-db
-          echo "Keychain set up"
+          KEYCHAIN=/tmp/app-signing.keychain-db
+          security create-keychain -p codemagic123 "$KEYCHAIN"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN"
+          security unlock-keychain -p codemagic123 "$KEYCHAIN"
+          security import /tmp/distribution.p12 -k "$KEYCHAIN" -P "$DIST_CERT_PASSWORD" \
+            -T /usr/bin/codesign -T /usr/bin/xcodebuild
+          security set-key-partition-list -S apple-tool:,apple: -s -k codemagic123 "$KEYCHAIN"
+          security list-keychains -d user -s "$KEYCHAIN" ~/Library/Keychains/login.keychain-db
 
-          echo "=== Installing provisioning profile ==="
-          PROFILE_DIR="$HOME/Library/MobileDevice/Provisioning Profiles"
-          mkdir -p "$PROFILE_DIR"
+          PROFILES="$HOME/Library/MobileDevice/Provisioning Profiles"
+          mkdir -p "$PROFILES"
           echo "$PROVISIONING_PROFILE" | base64 --decode > /tmp/profile.mobileprovision
-          echo "Profile file size: $(wc -c < /tmp/profile.mobileprovision) bytes"
-          # security cms is macOS-native and works reliably on all Xcode/OpenSSL versions
-          security cms -D -i /tmp/profile.mobileprovision -o /tmp/decoded_profile.plist 2>/dev/null || \
-            openssl smime -inform DER -verify -noverify -in /tmp/profile.mobileprovision -out /tmp/decoded_profile.plist 2>/dev/null
-          UUID=$(/usr/libexec/PlistBuddy -c 'Print :UUID' /tmp/decoded_profile.plist 2>/dev/null)
-          if [ -z "$UUID" ]; then
-            UUID=$(strings /tmp/profile.mobileprovision | grep -E '^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$' | head -1)
-          fi
-          if [ -z "$UUID" ]; then
-            echo "ERROR: Could not extract UUID from provisioning profile — check PROVISIONING_PROFILE env var"
-            exit 1
-          fi
-          echo "Profile UUID: $UUID"
-          cp /tmp/profile.mobileprovision "$PROFILE_DIR/$UUID.mobileprovision"
-          echo "Profile installed at: $PROFILE_DIR/$UUID.mobileprovision"
+          security cms -D -i /tmp/profile.mobileprovision -o /tmp/decoded.plist 2>/dev/null
+          UUID=$(/usr/libexec/PlistBuddy -c 'Print :UUID' /tmp/decoded.plist)
+          cp /tmp/profile.mobileprovision "$PROFILES/$UUID.mobileprovision"
+          echo "Profile: $UUID"
 
-          echo "=== Patching App project for manual signing ==="
           PBXPROJ="ios/App/App.xcodeproj/project.pbxproj"
           perl -i -pe "s/CODE_SIGN_STYLE = Automatic;/CODE_SIGN_STYLE = Manual;\n\t\t\t\tPROVISIONING_PROFILE_SPECIFIER = \"$UUID\";/g" "$PBXPROJ"
           perl -i -pe 's/CODE_SIGN_IDENTITY = "iPhone Developer";/CODE_SIGN_IDENTITY = "Apple Distribution";/g' "$PBXPROJ"
           perl -i -pe 's/PRODUCT_BUNDLE_IDENTIFIER = ("?)app\.felcin\.social\1;/PRODUCT_BUNDLE_IDENTIFIER = "com.felcin.app";/g' "$PBXPROJ"
-          echo "Patched. Verifying:"
-          grep "CODE_SIGN_STYLE\|PROVISIONING_PROFILE_SPECIFIER\|CODE_SIGN_IDENTITY\|PRODUCT_BUNDLE_IDENTIFIER" "$PBXPROJ"
 
-          echo "=== Generating export options ==="
-          {
-            echo '<?xml version="1.0" encoding="UTF-8"?>'
-            echo '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">'
-            echo '<plist version="1.0"><dict>'
-            echo '  <key>method</key><string>app-store-connect</string>'
-            echo '  <key>teamID</key><string>UWSVWR4VTX</string>'
-            echo '  <key>signingStyle</key><string>manual</string>'
-            echo '  <key>signingCertificate</key><string>Apple Distribution</string>'
-            echo '  <key>provisioningProfiles</key>'
-            echo '  <dict>'
-            echo "    <key>com.felcin.app</key><string>$UUID</string>"
-            echo '  </dict>'
-            echo '</dict></plist>'
-          } > /Users/builder/export_options.plist
-          echo "=== export_options.plist ==="
-          cat /Users/builder/export_options.plist
+          cat > /tmp/export_options.plist << PLIST
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0"><dict>
+            <key>method</key><string>app-store-connect</string>
+            <key>teamID</key><string>UWSVWR4VTX</string>
+            <key>signingStyle</key><string>manual</string>
+            <key>signingCertificate</key><string>Apple Distribution</string>
+            <key>provisioningProfiles</key>
+            <dict><key>com.felcin.app</key><string>$UUID</string></dict>
+          </dict></plist>
+          PLIST
 
       - name: Build IPA
         script: |
           set -eo pipefail
-          # Use macOS-native security cms (reliable on all Xcode/OpenSSL versions)
-          security cms -D -i /tmp/profile.mobileprovision -o /tmp/decoded_profile.plist 2>/dev/null || \
-            openssl smime -inform DER -verify -noverify -in /tmp/profile.mobileprovision -out /tmp/decoded_profile.plist 2>/dev/null
-          UUID=$(/usr/libexec/PlistBuddy -c 'Print :UUID' /tmp/decoded_profile.plist 2>/dev/null)
-          if [ -z "$UUID" ]; then
-            UUID=$(strings /tmp/profile.mobileprovision | grep -E '^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$' | head -1)
-          fi
-          if [ -z "$UUID" ]; then
-            echo "ERROR: Cannot extract profile UUID — provisioning profile may be corrupt or missing"
-            exit 1
-          fi
-          echo "Using profile UUID: $UUID"
+          ARCHIVE="build/ios/xcarchive/App.xcarchive"
+          IPA_DIR="build/ios/ipa"
+          mkdir -p "$(dirname $ARCHIVE)" "$IPA_DIR"
 
-          echo "=== Pre-flight: keychain & signing check ==="
-          security find-identity -v -p codesigning | grep -i "distribution\|apple" || echo "WARNING: No distribution identity found in keychain"
-          PROFILE_FILE="$HOME/Library/MobileDevice/Provisioning Profiles/$UUID.mobileprovision"
-          if [ -f "$PROFILE_FILE" ]; then
-            echo "Profile file: OK ($(wc -c < "$PROFILE_FILE") bytes)"
-          else
-            echo "ERROR: Profile file not found at $PROFILE_FILE"
-            ls "$HOME/Library/MobileDevice/Provisioning Profiles/" 2>/dev/null || echo "(directory empty)"
-            exit 1
-          fi
-          echo "Xcode version: $(xcodebuild -version)"
-          echo "SDK: $(xcodebuild -showsdks 2>/dev/null | grep iphoneos | tail -1)"
-
-          ARCHIVE_PATH="build/ios/xcarchive/App.xcarchive"
-          IPA_PATH="build/ios/ipa"
-          mkdir -p "$(dirname "$ARCHIVE_PATH")" "$IPA_PATH"
-
-          echo "=== Archiving ==="
           xcodebuild \
-            -workspace "$XCODE_WORKSPACE" \
-            -scheme "$XCODE_SCHEME" \
-            -archivePath "$ARCHIVE_PATH" \
-            archive \
+            -workspace "$XCODE_WORKSPACE" -scheme "$XCODE_SCHEME" \
+            -archivePath "$ARCHIVE" archive \
             COMPILER_INDEX_STORE_ENABLE=NO \
             DEVELOPMENT_TEAM=UWSVWR4VTX \
             CODE_SIGN_STYLE=Manual \
@@ -410,63 +402,20 @@
             MARKETING_VERSION=1.4 \
             CURRENT_PROJECT_VERSION=$BUILD_NUMBER
 
-          echo "=== Verifying xcarchive was created ==="
-          if [ ! -d "$ARCHIVE_PATH" ]; then
-            echo "ERROR: xcarchive not found at $ARCHIVE_PATH — archive failed"
-            exit 1
-          fi
-          echo "xcarchive root: $(ls $ARCHIVE_PATH/)"
-          echo "Applications/: $(ls $ARCHIVE_PATH/Products/Applications/ 2>/dev/null || echo MISSING)"
-
-          APP_PATH="$ARCHIVE_PATH/Products/Applications/App.app"
-          if [ ! -d "$APP_PATH" ]; then
-            echo "ERROR: App.app not at expected path, searching..."
-            APP_PATH=$(find "$ARCHIVE_PATH" -name "*.app" -not -path "*dSYM*" -maxdepth 4 | head -1)
-            echo "Found at: $APP_PATH"
-          fi
-          if [ -z "$APP_PATH" ] || [ ! -d "$APP_PATH" ]; then
-            echo "ERROR: Cannot locate App.app in xcarchive"
-            find "$ARCHIVE_PATH" 2>/dev/null | head -30
-            exit 1
-          fi
-          echo "App.app: $(du -sh "$APP_PATH")"
-
-          echo "=== Exporting IPA via xcodebuild -exportArchive ==="
           xcodebuild -exportArchive \
-            -archivePath "$ARCHIVE_PATH" \
-            -exportPath "$IPA_PATH" \
-            -exportOptionsPlist /Users/builder/export_options.plist
+            -archivePath "$ARCHIVE" \
+            -exportPath "$IPA_DIR" \
+            -exportOptionsPlist /tmp/export_options.plist
 
-          EXPORTED_IPA=$(find "$IPA_PATH" -name "*.ipa" | head -1)
-          if [ -z "$EXPORTED_IPA" ]; then
-            echo "ERROR: No IPA found in $IPA_PATH after xcodebuild -exportArchive"
-            echo "=== Export directory contents ==="
-            ls -la "$IPA_PATH/" 2>/dev/null || echo "(empty or missing)"
-            exit 1
-          fi
-          echo "IPA ready: $(ls -lh "$EXPORTED_IPA")"
+          echo "IPA: $(find $IPA_DIR -name '*.ipa' | head -1 | xargs ls -lh)"
 
       - name: Upload to TestFlight
         script: |
-          set -e
           IPA=$(find build/ios/ipa -name "*.ipa" | head -1)
-          if [ -z "$IPA" ]; then
-            echo "ERROR: No IPA found in build/ios/ipa/ — Build IPA step must have failed"
-            echo "=== build/ contents ==="
-            find build/ 2>/dev/null | head -30 || echo "build/ does not exist"
-            exit 1
-          fi
-          echo "Found IPA: $IPA"
-          echo "IPA size: $(ls -lh "$IPA" | awk '{print $5}')"
-          echo "IPA bundle ID check:"
-          unzip -p "$IPA" "Payload/App.app/Info.plist" | plutil -convert xml1 -o - - | grep -A1 CFBundleIdentifier || true
-
-          # altool looks for the .p8 key in ~/private_keys/AuthKey_<KEY_ID>.p8 automatically
           mkdir -p ~/private_keys
           echo "$APP_STORE_KEY_B64" | base64 --decode > ~/private_keys/AuthKey_${APP_STORE_CONNECT_KEY_IDENTIFIER}.p8
           xcrun altool --upload-app \
-            --file "$IPA" \
-            --type ios \
+            --file "$IPA" --type ios \
             --apple-id 6763660775 \
             --apiKey "$APP_STORE_CONNECT_KEY_IDENTIFIER" \
             --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID" \
@@ -481,7 +430,7 @@
 
     artifacts:
       - build/ios/ipa/*.ipa
-      - /tmp/xcodebuild_logs/*.log
+
 
   android-google-play:
     name: Felcin Android - Google Play
@@ -494,241 +443,140 @@
       node: latest
       vars:
         PACKAGE_NAME: com.felcin.app
+
     scripts:
+
       - name: Write Google Play credentials
         script: |
           set -e
-
-          # ── Step 1: resolve the raw JSON from whichever var is populated ──────
           RAW=""
-
           for VAR_NAME in GOOGLE_PLAY_SERVICE_ACCOUNT_JSON GOOGLE_PLAY_SERVICE_ACCOUNT_CREDENTIALS; do
             VAR_VALUE="${!VAR_NAME}"
-            if [ -z "$VAR_VALUE" ]; then
-              echo "  [$VAR_NAME] is empty — skipping"
-              continue
-            fi
-            echo "  [$VAR_NAME] is set (${#VAR_VALUE} chars)"
-
-            # Detect base64: real JSON always starts with '{'; anything else is base64
-            FIRST_CHAR="${VAR_VALUE:0:1}"
-            if [ "$FIRST_CHAR" = "{" ]; then
-              echo "  [$VAR_NAME] looks like raw JSON (starts with '{')"
-              RAW="$VAR_VALUE"
+            [ -z "$VAR_VALUE" ] && continue
+            if [ "${VAR_VALUE:0:1}" = "{" ]; then RAW="$VAR_VALUE"
             else
-              echo "  [$VAR_NAME] does not start with '{' — attempting base64 decode"
               DECODED=$(echo "$VAR_VALUE" | base64 --decode 2>/dev/null) || true
-              if [ "${DECODED:0:1}" = "{" ]; then
-                echo "  [$VAR_NAME] base64 decode succeeded — using decoded value"
-                RAW="$DECODED"
-              else
-                echo "  [$VAR_NAME] base64 decode did not produce JSON — skipping"
-              fi
+              [ "${DECODED:0:1}" = "{" ] && RAW="$DECODED"
             fi
-
             [ -n "$RAW" ] && break
           done
-
-          # ── Step 2: fail loudly if nothing resolved ──────────────────────────
-          if [ -z "$RAW" ]; then
-            echo "FATAL: Could not resolve valid JSON from GOOGLE_PLAY_SERVICE_ACCOUNT_JSON or GOOGLE_PLAY_SERVICE_ACCOUNT_CREDENTIALS"
-            echo "  Both variables are either empty or do not contain valid JSON (raw or base64)."
-            echo "  Check the 'android' environment group in Codemagic settings."
-            exit 1
-          fi
-
-          # ── Step 3: write the file ────────────────────────────────────────────
+          [ -z "$RAW" ] && { echo "FATAL: No valid Google Play credentials"; exit 1; }
           echo "$RAW" > /tmp/gp-credentials.json
-          FILE_SIZE=$(wc -c < /tmp/gp-credentials.json)
-          echo "Credentials file written: $FILE_SIZE bytes"
 
-          # ── Step 4: validate JSON and print key fields ────────────────────────
-          if command -v python3 &>/dev/null; then
-            python3 - <<'PYEOF'
-          import json, sys
-          try:
-              with open('/tmp/gp-credentials.json') as f:
-                  data = json.load(f)
-              print(f"  JSON is valid")
-              print(f"  type:         {data.get('type', '(missing)')}")
-              print(f"  project_id:   {data.get('project_id', '(missing)')}")
-              print(f"  client_email: {data.get('client_email', '(missing)')}")
-              if data.get('type') != 'service_account':
-                  print("  WARNING: 'type' is not 'service_account' — this credential will be rejected by Google Play")
-              if '(missing)' in (data.get('client_email','(missing)'), data.get('project_id','(missing)')):
-                  print("  WARNING: key fields are missing — credential file may be corrupt or wrong format")
-          except json.JSONDecodeError as e:
-              print(f"  FATAL: /tmp/gp-credentials.json is not valid JSON: {e}")
-              sys.exit(1)
-          PYEOF
-          else
-            echo "  python3 not available — skipping JSON validation (file was written)"
-          fi
-
-      - name: Build felcin-next static web bundle
+      - name: Build static web bundle
         script: |
           set -e
-          echo "=== Cloning felcin-next ==="
           git clone https://github.com/jjfitnessline23-dev/felcin-next.git /tmp/felcin-next
           cd /tmp/felcin-next
-
-          echo "=== Installing dependencies ==="
           npm install --legacy-peer-deps
 
-          echo "=== Patching felcin-next for static export ==="
           python3 << 'PYEOF'
-          import os, re as _re
+          import os, re
           for root, dirs, files in os.walk('app/api'):
               for f in files:
                   if f == 'route.ts':
                       p = os.path.join(root, f)
                       c = open(p).read()
-                      nc = c.replace("'force-dynamic'", "'force-static'").replace('"force-dynamic"', '"force-static"')
-                      if nc != c:
-                          open(p, 'w').write(nc)
-                          print('  API patched: ' + p)
+                      nc = c.replace("'force-dynamic'","'force-static'").replace('"force-dynamic"','"force-static"')
+                      if nc != c: open(p,'w').write(nc)
+
           dynamic_routes = [
-              ('app/(protected)/challenges/[id]/page.tsx', 'id'),
-              ('app/(protected)/ghost/[id]/page.tsx', 'id'),
-              ('app/(protected)/live/[id]/page.tsx', 'id'),
-              ('app/(protected)/podcasts/[id]/page.tsx', 'id'),
-              ('app/(protected)/podcasts/live/[id]/page.tsx', 'id'),
-              ('app/(protected)/subscribe/[uid]/page.tsx', 'uid'),
-              ('app/(protected)/tag/[name]/page.tsx', 'name'),
-              ('app/(protected)/trainers/[uid]/page.tsx', 'uid'),
-              ('app/(protected)/training-sessions/[sessionId]/page.tsx', 'sessionId'),
-              ('app/(public)/run/live/[shareId]/page.tsx', 'shareId'),
+              ('app/(protected)/challenges/[id]/page.tsx','id'),
+              ('app/(protected)/ghost/[id]/page.tsx','id'),
+              ('app/(protected)/live/[id]/page.tsx','id'),
+              ('app/(protected)/podcasts/[id]/page.tsx','id'),
+              ('app/(protected)/podcasts/live/[id]/page.tsx','id'),
+              ('app/(protected)/subscribe/[uid]/page.tsx','uid'),
+              ('app/(protected)/tag/[name]/page.tsx','name'),
+              ('app/(protected)/trainers/[uid]/page.tsx','uid'),
+              ('app/(protected)/training-sessions/[sessionId]/page.tsx','sessionId'),
+              ('app/(public)/run/live/[shareId]/page.tsx','shareId'),
           ]
           for path, key in dynamic_routes:
               if os.path.isfile(path):
-                  c = ('import { Suspense } from "react";\nimport PageClient from "./PageClient";\n\n'
-                       'export function generateStaticParams() { return [{ ' + key + ': "_" }]; }\n'
-                       'export const dynamicParams = false;\n\n'
-                       'export default function Page() { return <Suspense fallback={null}><PageClient /></Suspense>; }\n')
-                  open(path, 'w').write(c)
-                  print('  Patched: ' + path)
-              else:
-                  print('  Skipped: ' + path)
-          sp = [
-              'app/(protected)/advertise/page.tsx',
-              'app/(protected)/badges/page.tsx',
-              'app/(protected)/comments/page.tsx',
-              'app/(protected)/creator/page.tsx',
-              'app/(protected)/earnings/page.tsx',
-              'app/(protected)/explore/page.tsx',
-              'app/(protected)/page.tsx',
-              'app/(protected)/private-chats/page.tsx',
+                  open(path,'w').write(
+                      'import { Suspense } from "react";\nimport PageClient from "./PageClient";\n\n'
+                      'export function generateStaticParams() { return [{ '+key+': "_" }]; }\n'
+                      'export const dynamicParams = false;\n\n'
+                      'export default function Page() { return <Suspense fallback={null}><PageClient /></Suspense>; }\n'
+                  )
+
+          suspense_pages = [
+              'app/(protected)/advertise/page.tsx','app/(protected)/badges/page.tsx',
+              'app/(protected)/comments/page.tsx','app/(protected)/creator/page.tsx',
+              'app/(protected)/earnings/page.tsx','app/(protected)/explore/page.tsx',
+              'app/(protected)/page.tsx','app/(protected)/private-chats/page.tsx',
               'app/(protected)/training-sessions/page.tsx',
           ]
-          w = ('import { Suspense } from "react";\nimport PageContent from "./page.content";\n'
-               'export default function Page() { return <Suspense fallback={null}><PageContent /></Suspense>; }\n')
-          for page in sp:
+          for page in suspense_pages:
               if os.path.isfile(page):
-                  cp = os.path.join(os.path.dirname(page), 'page.content.tsx')
-                  os.rename(page, cp)
-                  open(page, 'w').write(w)
-                  print('  Wrapped: ' + page)
-              else:
-                  print('  Skipped: ' + page)
-          # user-profile: surgical patch — keep existing imports, strip generateMetadata
-          # + fetchUserProfile (break static export), wrap <PageClient /> in Suspense
-          # (PageClient calls useSearchParams which needs a Suspense boundary).
+                  cp = os.path.join(os.path.dirname(page),'page.content.tsx')
+                  os.rename(page,cp)
+                  open(page,'w').write(
+                      'import { Suspense } from "react";\nimport PageContent from "./page.content";\n'
+                      'export default function Page() { return <Suspense fallback={null}><PageContent /></Suspense>; }\n'
+                  )
+
           up = 'app/(protected)/user-profile/page.tsx'
           if os.path.isfile(up):
               content = open(up).read()
-              content = _re.sub(r'export async function generateMetadata\b.*?\n\}', '', content, flags=_re.DOTALL)
-              content = _re.sub(r'async function fetchUserProfile\b.*?\n\}', '', content, flags=_re.DOTALL)
-              content = content.replace('import type { Metadata } from "next";\n', '')
-              if '{ Suspense }' not in content and 'Suspense' not in content:
-                  content = content.replace(
-                      'import PageClient from "./PageClient";',
-                      'import { Suspense } from "react";\nimport PageClient from "./PageClient";'
-                  )
-              content = content.replace('return <PageClient />;', 'return <Suspense fallback={null}><PageClient /></Suspense>;')
-              open(up, 'w').write(content)
-              print('  Patched: ' + up + ' (stripped generateMetadata, added Suspense)')
-          print('All patches applied.')
+              content = re.sub(r'export async function generateMetadata\b.*?\n\}','',content,flags=re.DOTALL)
+              content = re.sub(r'async function fetchUserProfile\b.*?\n\}','',content,flags=re.DOTALL)
+              content = content.replace('import type { Metadata } from "next";\n','')
+              if 'Suspense' not in content:
+                  content = content.replace('import PageClient from "./PageClient";',
+                      'import { Suspense } from "react";\nimport PageClient from "./PageClient";')
+              content = content.replace('return <PageClient />;','return <Suspense fallback={null}><PageClient /></Suspense>;')
+              open(up,'w').write(content)
           PYEOF
 
-          echo "=== Building static export ==="
           NEXT_PUBLIC_CAPACITOR_BUILD=true \
           NEXT_PUBLIC_API_URL="https://www.felcin.com" \
           NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY="${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY:-pk_test_51TeacHFq0Nd4lLkFwHZ7nutFk0jI0H4bmtffnaI92is7ym5KEVuXmppnVMgQhC9qP39zBhgzOukNYUE4yvtiwa0I00CycqtIbo}" \
           npm run build
 
-          if [ ! -f "out/index.html" ]; then
-            echo "ERROR: out/index.html not found — static build failed"
-            ls -la out/ 2>/dev/null || echo "out/ directory does not exist"
-            exit 1
-          fi
+          [ -f "out/index.html" ] || { echo "ERROR: static build failed"; exit 1; }
 
-          echo "=== Static bundle ready at /tmp/felcin-next/out ==="
-          ls /tmp/felcin-next/out/ | head -10
+          find out/_next/static/chunks -name '*.js' | xargs perl -i -pe 's|fetch\("/api/|fetch("https://www.felcin.com/api/|g'
+          find out/_next/static/chunks -name '*.js' | xargs perl -i -pe "s|fetch\\('/api/|fetch('https://www.felcin.com/api/|g"
+          find out/_next/static/chunks -name '*.js' | xargs perl -i -pe 's|\`/api/|\`https://www.felcin.com/api/|g'
 
-          echo "=== Patching relative /api/ calls to use absolute Vercel URL ==="
-          # Without server.url, fetch('/api/...') hits http://localhost/api/... on device.
-          # Use perl -i -pe (cross-platform) instead of sed -i which requires '' on macOS BSD sed.
-          find out/_next/static/chunks -name '*.js' | xargs \
-            perl -i -pe 's|fetch\("/api/|fetch("https://www.felcin.com/api/|g'
-          find out/_next/static/chunks -name '*.js' | xargs \
-            perl -i -pe "s|fetch\\('/api/|fetch('https://www.felcin.com/api/|g"
-          find out/_next/static/chunks -name '*.js' | xargs \
-            perl -i -pe 's|\`/api/|\`https://www.felcin.com/api/|g'
-          PATCHED=$(grep -rl 'felcin.com/api/' out/_next/static/chunks | wc -l)
-          echo "  Patched $PATCHED JS chunk file(s)"
-
-      - name: Patch capacitor.config.json for bundled static build
+      - name: Patch capacitor.config.json
         script: |
           python3 << 'PYEOF'
           import json
-          with open('capacitor.config.json', 'r') as f:
-              config = json.load(f)
-          # Point webDir at the static export — files get bundled into the APK/AAB
-          config['webDir'] = '/tmp/felcin-next/out'
-          # Remove server.url so the app loads from bundled assets, not the live URL
-          config.pop('server', None)
-          with open('capacitor.config.json', 'w') as f:
-              json.dump(config, f, indent=2)
-          print('capacitor.config.json patched:')
-          print(f"  webDir: {config['webDir']}")
-          print('  server.url removed — app is fully self-contained')
+          with open('capacitor.config.json') as f: c = json.load(f)
+          c['webDir'] = '/tmp/felcin-next/out'
+          c.pop('server', None)
+          with open('capacitor.config.json','w') as f: json.dump(c, f, indent=2)
           PYEOF
 
-      - name: Install npm dependencies
-        script: npm install --legacy-peer-deps
-
-      - name: Install Capacitor CLI
-        script: npm install -g @capacitor/cli
-
-      - name: Patch GoogleAuthProviderHandler to clear cached account on sign-out
+      - name: Install dependencies
         script: |
-          FILE="node_modules/@capacitor-firebase/authentication/android/src/main/java/io/capawesome/capacitorjs/plugins/firebase/authentication/handlers/GoogleAuthProviderHandler.java"
-          perl -i -pe 's/public void signOut\(\) \{/public void signOut() {\n        if (mGoogleSignInClient != null) { mGoogleSignInClient.signOut(); }/' "$FILE"
-          echo "Patch applied — signOut() now clears native Google Sign-In cache"
+          npm install --legacy-peer-deps
+          npm install -g @capacitor/cli
+
+      - name: Patch Google Sign-Out cache
+        script: |
+          perl -i -pe 's/public void signOut\(\) \{/public void signOut() {\n        if (mGoogleSignInClient != null) { mGoogleSignInClient.signOut(); }/' \
+            "node_modules/@capacitor-firebase/authentication/android/src/main/java/io/capawesome/capacitorjs/plugins/firebase/authentication/handlers/GoogleAuthProviderHandler.java"
 
       - name: Add Android platform
         script: |
           if [ ! -f "android/gradlew" ]; then
-            echo "gradlew missing — regenerating android platform"
-            [ -f "android/app/build.gradle" ] && cp android/app/build.gradle /tmp/custom-build.gradle
             rm -rf android
             npx cap add android
-            [ -f "/tmp/custom-build.gradle" ] && cp /tmp/custom-build.gradle android/app/build.gradle
-            echo "Android platform regenerated"
-          else
-            echo "android/gradlew exists — skipping cap add"
           fi
 
       - name: Capacitor sync
         script: npx cap sync android
 
-      - name: Set app name and version
+      - name: Set version and package name
         script: |
           BUILD_NO=$(( ${BUILD_NUMBER:-1} + 200 ))
           sed -i '' "s/versionCode [0-9]*/versionCode $BUILD_NO/" android/app/build.gradle
           sed -i '' "s/versionName \"[^\"]*\"/versionName \"2.0\"/" android/app/build.gradle
           sed -i '' "s/applicationId \"com\.felcin\.app\"/applicationId \"app.felcin.social\"/" android/app/build.gradle
-          echo "versionCode=$BUILD_NO versionName=2.0 applicationId=app.felcin.social"
 
       - name: Enable R8 optimization
         script: |
@@ -737,44 +585,20 @@
           grep -q 'shrinkResources' android/app/build.gradle || \
             perl -i -pe 's/minifyEnabled true/minifyEnabled true\n            shrinkResources true/' android/app/build.gradle
           perl -i -pe 's/proguard-android\.txt/proguard-android-optimize.txt/' android/app/build.gradle
-          echo "=== R8 enabled — build.gradle release block ==="
-          grep -A8 "buildTypes" android/app/build.gradle
 
-      - name: Replace app icon with Felcin ghost logo
+      - name: Set app icons
         script: |
-          ICON_SRC="android-icons"
-          if [ -d "$ICON_SRC" ]; then
-            cp "$ICON_SRC"/mipmap-mdpi/*.png    android/app/src/main/res/mipmap-mdpi/
-            cp "$ICON_SRC"/mipmap-hdpi/*.png    android/app/src/main/res/mipmap-hdpi/
-            cp "$ICON_SRC"/mipmap-xhdpi/*.png   android/app/src/main/res/mipmap-xhdpi/
-            cp "$ICON_SRC"/mipmap-xxhdpi/*.png  android/app/src/main/res/mipmap-xxhdpi/
-            cp "$ICON_SRC"/mipmap-xxxhdpi/*.png android/app/src/main/res/mipmap-xxxhdpi/
-            echo "Icons installed from android-icons folder"
-          else
-            echo "No android-icons folder found — using icons already in android project"
+          if [ -d "android-icons" ]; then
+            cp android-icons/mipmap-mdpi/*.png    android/app/src/main/res/mipmap-mdpi/
+            cp android-icons/mipmap-hdpi/*.png    android/app/src/main/res/mipmap-hdpi/
+            cp android-icons/mipmap-xhdpi/*.png   android/app/src/main/res/mipmap-xhdpi/
+            cp android-icons/mipmap-xxhdpi/*.png  android/app/src/main/res/mipmap-xxhdpi/
+            cp android-icons/mipmap-xxxhdpi/*.png android/app/src/main/res/mipmap-xxxhdpi/
           fi
 
-      - name: Print signing fingerprint for assetlinks.json
+      - name: Build AAB + APK
         script: |
-          echo "$KEYSTORE_BASE64" | base64 --decode > /tmp/felcin-release.keystore
-          echo "=== Full keytool output (for debugging) ==="
-          keytool -list -v \
-            -keystore /tmp/felcin-release.keystore \
-            -alias "$KEY_ALIAS" \
-            -storepass "$KEYSTORE_PASSWORD" 2>&1 || true
-          echo "=== SHA256 fingerprint (paste into assetlinks.json) ==="
-          keytool -list -v \
-            -keystore /tmp/felcin-release.keystore \
-            -alias "$KEY_ALIAS" \
-            -storepass "$KEYSTORE_PASSWORD" 2>&1 | grep "SHA256:" || echo "WARNING: SHA256 not found — check KEYSTORE_BASE64 / KEY_ALIAS / KEYSTORE_PASSWORD env vars"
-
-      - name: Build release AAB + APK
-        script: |
-          echo "=== android/ contents before cd ==="
-          ls -la android/ || echo "android/ directory missing!"
           cd android
-          echo "=== inside android/ ==="
-          ls -la
           chmod +x gradlew
           echo "$KEYSTORE_BASE64" | base64 --decode > /tmp/felcin-release.keystore
           ./gradlew bundleRelease assembleRelease \
@@ -782,62 +606,35 @@
             -Pandroid.injected.signing.store.password="$KEYSTORE_PASSWORD" \
             -Pandroid.injected.signing.key.alias="$KEY_ALIAS" \
             -Pandroid.injected.signing.key.password="$KEY_PASSWORD"
-          echo "=== Build outputs ==="
-          find app/build/outputs -name "*.aab" -o -name "*.apk" | head -10
 
-      - name: Publish to Google Play
+      - name: Publish to Google Play internal track
         script: |
-          set -e
-          echo "=== Installing Google API client ==="
           pip3 install --quiet google-auth google-api-python-client
-
-          python3 - <<'PYEOF'
-          import json, sys
-
+          python3 - << 'PYEOF'
           from google.oauth2 import service_account
           from googleapiclient.discovery import build
           from googleapiclient.http import MediaFileUpload
 
-          PACKAGE   = 'app.felcin.social'
-          AAB       = 'android/app/build/outputs/bundle/release/app-release.aab'
-          CREDS     = '/tmp/gp-credentials.json'
-          TRACK     = 'internal'
-
-          print(f'Loading credentials from {CREDS}...')
-          creds = service_account.Credentials.from_service_account_file(
-              CREDS,
+          PACKAGE = 'app.felcin.social'
+          AAB     = 'android/app/build/outputs/bundle/release/app-release.aab'
+          creds   = service_account.Credentials.from_service_account_file(
+              '/tmp/gp-credentials.json',
               scopes=['https://www.googleapis.com/auth/androidpublisher']
           )
-          print(f'Service account: {creds.service_account_email}')
-
-          service = build('androidpublisher', 'v3', credentials=creds)
-
-          print(f'Creating edit for {PACKAGE}...')
-          edit = service.edits().insert(packageName=PACKAGE, body={}).execute()
-          edit_id = edit['id']
-          print(f'Edit ID: {edit_id}')
-
-          print(f'Uploading {AAB}...')
-          media = MediaFileUpload(AAB, mimetype='application/octet-stream', resumable=True)
-          bundle = service.edits().bundles().upload(
-              packageName=PACKAGE,
-              editId=edit_id,
-              media_body=media
+          service = build('androidpublisher','v3',credentials=creds)
+          edit    = service.edits().insert(packageName=PACKAGE,body={}).execute()
+          eid     = edit['id']
+          bundle  = service.edits().bundles().upload(
+              packageName=PACKAGE, editId=eid,
+              media_body=MediaFileUpload(AAB,mimetype='application/octet-stream',resumable=True)
           ).execute()
-          version_code = bundle['versionCode']
-          print(f'Uploaded AAB — versionCode: {version_code}')
-
-          print(f'Assigning to {TRACK} track...')
+          vc = bundle['versionCode']
           service.edits().tracks().update(
-              packageName=PACKAGE,
-              editId=edit_id,
-              track=TRACK,
-              body={'releases': [{'versionCodes': [version_code], 'status': 'completed'}]}
+              packageName=PACKAGE, editId=eid, track='internal',
+              body={'releases':[{'versionCodes':[vc],'status':'completed'}]}
           ).execute()
-
-          print('Committing edit...')
-          service.edits().commit(packageName=PACKAGE, editId=edit_id).execute()
-          print(f'SUCCESS: Published versionCode {version_code} to {TRACK} track!')
+          service.edits().commit(packageName=PACKAGE,editId=eid).execute()
+          print(f'Published versionCode {vc} to internal track')
           PYEOF
 
     triggering:
