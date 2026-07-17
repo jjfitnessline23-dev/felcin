@@ -91,22 +91,72 @@
           up = 'app/(protected)/user-profile/page.tsx'
           if os.path.isfile(up):
               content = open(up).read()
-              # Strip generateMetadata export (uses async searchParams)
               content = _re.sub(r'export async function generateMetadata\b.*?\n\}', '', content, flags=_re.DOTALL)
-              # Strip fetchUserProfile helper (only used by generateMetadata)
               content = _re.sub(r'async function fetchUserProfile\b.*?\n\}', '', content, flags=_re.DOTALL)
-              # Remove now-unused Metadata type import
               content = content.replace('import type { Metadata } from "next";\n', '')
-              # Add Suspense import if not already present
               if '{ Suspense }' not in content and 'Suspense' not in content:
                   content = content.replace(
                       'import PageClient from "./PageClient";',
                       'import { Suspense } from "react";\nimport PageClient from "./PageClient";'
                   )
-              # Wrap <PageClient /> in Suspense boundary
               content = content.replace('return <PageClient />;', 'return <Suspense fallback={null}><PageClient /></Suspense>;')
               open(up, 'w').write(content)
               print('  Patched: ' + up + ' (stripped generateMetadata, added Suspense)')
+
+          # ── CRITICAL BUNDLE PATCHES ─────────────────────────────────────────────────
+          # In a bundled Capacitor iOS build we KNOW we are always running inside
+          # WKWebView. Patching these at build-time removes all runtime detection that
+          # can race or fail and replaces it with hard-coded values.
+
+          # firebase.ts — force isCapacitor=true and always use memoryLocalCache.
+          # persistentLocalCache (IndexedDB) hangs indefinitely in WKWebView when the
+          # network is active, which is exactly the "stuck on loading with internet" bug.
+          fbt = 'lib/firebase.ts'
+          if os.path.isfile(fbt):
+              content = open(fbt).read()
+              content = _re.sub(
+                  r'const isCapacitor = detectCapacitor\(\);',
+                  'const isCapacitor = true; // bundled iOS — hardcoded, no detection needed',
+                  content
+              )
+              content = content.replace(
+                  'const cache = isCapacitor ? memoryLocalCache() : persistentLocalCache();',
+                  'const cache = memoryLocalCache(); // bundled iOS — IndexedDB hangs in WKWebView'
+              )
+              open(fbt, 'w').write(content)
+              print('  Patched: ' + fbt + ' (isCapacitor=true, memoryLocalCache forced)')
+
+          # auth.tsx — force isCapacitorApp=true so logged-out users get an immediate
+          # setLoading(false) without waiting for onAuthStateChanged null→null no-op.
+          axt = 'lib/auth.tsx'
+          if os.path.isfile(axt):
+              content = open(axt).read()
+              content = _re.sub(
+                  r'const isCapacitorApp\s*=\s*[^;]+;',
+                  'const isCapacitorApp = true; // bundled iOS — hardcoded',
+                  content
+              )
+              open(axt, 'w').write(content)
+              print('  Patched: ' + axt + ' (isCapacitorApp=true)')
+
+          # login/page.tsx — force getPlatform() to return "ios" and set initial
+          # platform state to "ios" so the Apple button renders on first paint and
+          # handleGoogle() uses the native Capacitor plugin without timing issues.
+          lpt = 'app/(public)/login/page.tsx'
+          if os.path.isfile(lpt):
+              content = open(lpt).read()
+              # Add early return at top of getPlatform so body is dead code (still valid TS)
+              content = content.replace(
+                  'function getPlatform(): Platform {\n  if (typeof window === "undefined") return "web";',
+                  'function getPlatform(): Platform {\n  return "ios"; // bundled iOS build\n  if (typeof window === "undefined") return "web";'
+              )
+              # Start with "ios" so Apple button shows on first render (not after mount)
+              content = content.replace(
+                  'const [platform, setPlatform] = useState<Platform>("web");',
+                  'const [platform, setPlatform] = useState<Platform>("ios");'
+              )
+              open(lpt, 'w').write(content)
+              print('  Patched: ' + lpt + ' (platform=ios, getPlatform early return)')
 
           print('All patches done.')
           PYEOF
