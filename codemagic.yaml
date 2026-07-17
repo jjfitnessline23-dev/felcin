@@ -816,6 +816,16 @@
           sed -i '' "s/applicationId \"com\.felcin\.app\"/applicationId \"app.felcin.social\"/" android/app/build.gradle
           echo "versionCode=$BUILD_NO versionName=2.0 applicationId=app.felcin.social"
 
+      - name: Enable R8 optimization
+        script: |
+          perl -i -pe 's/minifyEnabled false/minifyEnabled true/' android/app/build.gradle
+          perl -i -pe 's/shrinkResources false/shrinkResources true/' android/app/build.gradle
+          grep -q 'shrinkResources' android/app/build.gradle || \
+            perl -i -pe 's/minifyEnabled true/minifyEnabled true\n            shrinkResources true/' android/app/build.gradle
+          perl -i -pe 's/proguard-android\.txt/proguard-android-optimize.txt/' android/app/build.gradle
+          echo "=== R8 enabled — build.gradle release block ==="
+          grep -A8 "buildTypes" android/app/build.gradle
+
       - name: Replace app icon with Felcin ghost logo
         script: |
           ICON_SRC="android-icons"
