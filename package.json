@@ -5,6 +5,7 @@
   "homepage": "https://felcin.com",
   "dependencies": {
     "@capacitor-firebase/authentication": "^7.0.0",
+    "@capacitor-firebase/firestore": "^7.0.0",
     "@capacitor/android": "^7.0.0",
     "@capacitor/app": "^7.0.0",
     "@capacitor/browser": "^7.0.0",
