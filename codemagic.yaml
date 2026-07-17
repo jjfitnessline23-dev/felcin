@@ -844,7 +844,7 @@
             -alias "$KEY_ALIAS" \
             -storepass "$KEYSTORE_PASSWORD" 2>&1 | grep "SHA256:" || echo "WARNING: SHA256 not found — check KEYSTORE_BASE64 / KEY_ALIAS / KEYSTORE_PASSWORD env vars"
 
-      - name: Build release AAB
+      - name: Build release AAB + APK
         script: |
           echo "=== android/ contents before cd ==="
           ls -la android/ || echo "android/ directory missing!"
@@ -853,11 +853,13 @@
           ls -la
           chmod +x gradlew
           echo "$KEYSTORE_BASE64" | base64 --decode > /tmp/felcin-release.keystore
-          ./gradlew bundleRelease \
+          ./gradlew bundleRelease assembleRelease \
             -Pandroid.injected.signing.store.file=/tmp/felcin-release.keystore \
             -Pandroid.injected.signing.store.password="$KEYSTORE_PASSWORD" \
             -Pandroid.injected.signing.key.alias="$KEY_ALIAS" \
             -Pandroid.injected.signing.key.password="$KEY_PASSWORD"
+          echo "=== Build outputs ==="
+          find app/build/outputs -name "*.aab" -o -name "*.apk" | head -10
 
       - name: Publish to Google Play
         script: |
@@ -915,7 +917,12 @@
           PYEOF
 
     triggering:
-      events: []
+      events:
+        - push
+      branch_patterns:
+        - pattern: master
+          include: true
 
     artifacts:
       - android/app/build/outputs/bundle/release/app-release.aab
+      - android/app/build/outputs/apk/release/app-release.apk
