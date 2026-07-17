@@ -129,21 +129,25 @@
       - name: Add iOS platform
         script: |
           if [ ! -d "ios" ]; then
-            npx cap add ios
-          fi
+            # cap add ios generates the Podfile then runs pod install.
+            # pod install fails if any plugin needs a higher deployment target,
+            # so we allow it to fail, patch the Podfile, then re-run pod install.
+            npx cap add ios || true
 
-      - name: Set iOS deployment target to 16.0
-        script: |
-          python3 << 'PYEOF'
-          import re
-          path = 'ios/App/Podfile'
-          with open(path, 'r') as f:
-              content = f.read()
-          content = re.sub(r"platform :ios, '[0-9.]+'", "platform :ios, '16.0'", content)
-          with open(path, 'w') as f:
-              f.write(content)
-          print('Podfile deployment target updated to 16.0')
-          PYEOF
+            python3 << 'PYEOF'
+            import re, os, sys
+            path = 'ios/App/Podfile'
+            if not os.path.exists(path):
+                print('ERROR: Podfile not found after cap add ios', file=sys.stderr)
+                sys.exit(1)
+            content = open(path).read()
+            content = re.sub(r"platform :ios, '[0-9.]+'", "platform :ios, '16.0'", content)
+            open(path, 'w').write(content)
+            print('Podfile: deployment target patched to 16.0')
+            PYEOF
+
+            cd ios/App && pod install
+          fi
 
       - name: Capacitor sync
         script: npx cap sync ios
