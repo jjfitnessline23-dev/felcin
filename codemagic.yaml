@@ -16,199 +16,26 @@
         XCODE_WORKSPACE: ios/App/App.xcworkspace
         XCODE_SCHEME: App
     scripts:
-      - name: Build felcin-next static web bundle
-        script: |
-          set -e
-          echo "=== Cloning felcin-next (latest) ==="
-          git clone https://github.com/jjfitnessline23-dev/felcin-next.git /tmp/felcin-next
-          cd /tmp/felcin-next
-
-          echo "=== Installing dependencies ==="
-          npm install --legacy-peer-deps
-
-          echo "=== Patching for static export ==="
-          python3 << 'PYEOF'
-          import os, re as _re
-
-          for root, dirs, files in os.walk('app/api'):
-              for f in files:
-                  if f == 'route.ts':
-                      p = os.path.join(root, f)
-                      c = open(p).read()
-                      nc = c.replace("'force-dynamic'", "'force-static'").replace('"force-dynamic"', '"force-static"')
-                      if nc != c:
-                          open(p, 'w').write(nc)
-                          print('  Patched API: ' + p)
-
-          dynamic_routes = [
-              ('app/(protected)/challenges/[id]/page.tsx', 'id'),
-              ('app/(protected)/ghost/[id]/page.tsx', 'id'),
-              ('app/(protected)/live/[id]/page.tsx', 'id'),
-              ('app/(protected)/podcasts/[id]/page.tsx', 'id'),
-              ('app/(protected)/podcasts/live/[id]/page.tsx', 'id'),
-              ('app/(protected)/subscribe/[uid]/page.tsx', 'uid'),
-              ('app/(protected)/tag/[name]/page.tsx', 'name'),
-              ('app/(protected)/trainers/[uid]/page.tsx', 'uid'),
-              ('app/(protected)/training-sessions/[sessionId]/page.tsx', 'sessionId'),
-          ]
-          for path, key in dynamic_routes:
-              if os.path.isfile(path):
-                  c = ('import { Suspense } from "react";\nimport PageClient from "./PageClient";\n\n'
-                       'export function generateStaticParams() { return [{ ' + key + ': "_" }]; }\n'
-                       'export const dynamicParams = false;\n\n'
-                       'export default function Page() { return <Suspense fallback={null}><PageClient /></Suspense>; }\n')
-                  open(path, 'w').write(c)
-                  print('  Patched: ' + path)
-              else:
-                  print('  Skipped: ' + path)
-
-          suspense_pages = [
-              'app/(protected)/advertise/page.tsx',
-              'app/(protected)/badges/page.tsx',
-              'app/(protected)/comments/page.tsx',
-              'app/(protected)/creator/page.tsx',
-              'app/(protected)/earnings/page.tsx',
-              'app/(protected)/explore/page.tsx',
-              'app/(protected)/page.tsx',
-              'app/(protected)/private-chats/page.tsx',
-              'app/(protected)/training-sessions/page.tsx',
-          ]
-          w = ('import { Suspense } from "react";\nimport PageContent from "./page.content";\n'
-               'export default function Page() { return <Suspense fallback={null}><PageContent /></Suspense>; }\n')
-          for page in suspense_pages:
-              if os.path.isfile(page):
-                  cp = os.path.join(os.path.dirname(page), 'page.content.tsx')
-                  os.rename(page, cp)
-                  open(page, 'w').write(w)
-                  print('  Wrapped: ' + page)
-              else:
-                  print('  Skipped: ' + page)
-
-          # user-profile: surgical patch — keep existing imports (Turbopack resolves them
-          # correctly), strip the async generateMetadata + fetchUserProfile that break
-          # static export, and wrap <PageClient /> in Suspense (PageClient calls
-          # useSearchParams which requires a Suspense boundary for static export).
-          up = 'app/(protected)/user-profile/page.tsx'
-          if os.path.isfile(up):
-              content = open(up).read()
-              content = _re.sub(r'export async function generateMetadata\b.*?\n\}', '', content, flags=_re.DOTALL)
-              content = _re.sub(r'async function fetchUserProfile\b.*?\n\}', '', content, flags=_re.DOTALL)
-              content = content.replace('import type { Metadata } from "next";\n', '')
-              if '{ Suspense }' not in content and 'Suspense' not in content:
-                  content = content.replace(
-                      'import PageClient from "./PageClient";',
-                      'import { Suspense } from "react";\nimport PageClient from "./PageClient";'
-                  )
-              content = content.replace('return <PageClient />;', 'return <Suspense fallback={null}><PageClient /></Suspense>;')
-              open(up, 'w').write(content)
-              print('  Patched: ' + up + ' (stripped generateMetadata, added Suspense)')
-
-          # ── CRITICAL BUNDLE PATCHES ─────────────────────────────────────────────────
-          # In a bundled Capacitor iOS build we KNOW we are always running inside
-          # WKWebView. Patching these at build-time removes all runtime detection that
-          # can race or fail and replaces it with hard-coded values.
-
-          # firebase.ts — force isCapacitor=true and always use memoryLocalCache.
-          # persistentLocalCache (IndexedDB) hangs indefinitely in WKWebView when the
-          # network is active, which is exactly the "stuck on loading with internet" bug.
-          fbt = 'lib/firebase.ts'
-          if os.path.isfile(fbt):
-              content = open(fbt).read()
-              content = _re.sub(
-                  r'const isCapacitor = detectCapacitor\(\);',
-                  'const isCapacitor = true; // bundled iOS — hardcoded, no detection needed',
-                  content
-              )
-              content = content.replace(
-                  'const cache = isCapacitor ? memoryLocalCache() : persistentLocalCache();',
-                  'const cache = memoryLocalCache(); // bundled iOS — IndexedDB hangs in WKWebView'
-              )
-              open(fbt, 'w').write(content)
-              print('  Patched: ' + fbt + ' (isCapacitor=true, memoryLocalCache forced)')
-
-          # auth.tsx — force isCapacitorApp=true so logged-out users get an immediate
-          # setLoading(false) without waiting for onAuthStateChanged null→null no-op.
-          axt = 'lib/auth.tsx'
-          if os.path.isfile(axt):
-              content = open(axt).read()
-              content = _re.sub(
-                  r'const isCapacitorApp\s*=\s*[^;]+;',
-                  'const isCapacitorApp = true; // bundled iOS — hardcoded',
-                  content
-              )
-              open(axt, 'w').write(content)
-              print('  Patched: ' + axt + ' (isCapacitorApp=true)')
-
-          # login/page.tsx — force getPlatform() to return "ios" and set initial
-          # platform state to "ios" so the Apple button renders on first paint and
-          # handleGoogle() uses the native Capacitor plugin without timing issues.
-          lpt = 'app/(public)/login/page.tsx'
-          if os.path.isfile(lpt):
-              content = open(lpt).read()
-              # Add early return at top of getPlatform so body is dead code (still valid TS)
-              content = content.replace(
-                  'function getPlatform(): Platform {\n  if (typeof window === "undefined") return "web";',
-                  'function getPlatform(): Platform {\n  return "ios"; // bundled iOS build\n  if (typeof window === "undefined") return "web";'
-              )
-              # Start with "ios" so Apple button shows on first render (not after mount)
-              content = content.replace(
-                  'const [platform, setPlatform] = useState<Platform>("web");',
-                  'const [platform, setPlatform] = useState<Platform>("ios");'
-              )
-              open(lpt, 'w').write(content)
-              print('  Patched: ' + lpt + ' (platform=ios, getPlatform early return)')
-
-          print('All patches done.')
-          PYEOF
-
-          echo "=== Building static export ==="
-          NEXT_PUBLIC_CAPACITOR_BUILD=true \
-          NEXT_PUBLIC_API_URL="https://www.felcin.com" \
-          NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY="${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY:-pk_test_51TeacHFq0Nd4lLkFwHZ7nutFk0jI0H4bmtffnaI92is7ym5KEVuXmppnVMgQhC9qP39zBhgzOukNYUE4yvtiwa0I00CycqtIbo}" \
-          npm run build
-
-          if [ ! -f "out/index.html" ]; then
-            echo "ERROR: out/index.html not found — static build failed"
-            exit 1
-          fi
-          PAGE_COUNT=$(find out -name '*.html' | wc -l)
-          echo "=== Bundle ready: $PAGE_COUNT HTML pages ==="
-          if [ "$PAGE_COUNT" -lt 20 ]; then
-            echo "WARNING: fewer pages than expected — some routes may have failed to export"
-          fi
-
-          echo "=== Patching /api/ calls to absolute Vercel URL ==="
-          find out/_next/static/chunks -name '*.js' | xargs perl -i -pe 's|fetch\("/api/|fetch("https://www.felcin.com/api/|g'
-          find out/_next/static/chunks -name '*.js' | xargs perl -i -pe "s|fetch\\('/api/|fetch('https://www.felcin.com/api/|g"
-          find out/_next/static/chunks -name '*.js' | xargs perl -i -pe 's|\`/api/|\`https://www.felcin.com/api/|g'
-          PATCHED=$(grep -rl 'felcin.com/api/' out/_next/static/chunks | wc -l)
-          echo "  Patched $PATCHED JS chunk file(s)"
-
-      - name: Patch capacitor.config.json — bundled mode
+      - name: Configure Capacitor — live URL mode
         script: |
           python3 << 'PYEOF'
           import json
           with open('capacitor.config.json', 'r') as f:
               config = json.load(f)
+          # Load the full felcin.com web app live — proven working (build 53).
+          # All features are always included, auth works on the correct origin,
+          # no static-export patching, no WKWebView IndexedDB loading issues.
+          config['server'] = {'url': 'https://www.felcin.com', 'cleartext': False}
           config['appId'] = 'com.felcin.app'
-          config['webDir'] = '/tmp/felcin-next/out'
-          config.pop('server', None)
+          # limitsNavigationsToAppBoundDomains must be False so Firebase auth flows,
+          # Google sign-in, and Stripe can open their domains inside WKWebView.
           if 'ios' not in config:
               config['ios'] = {}
-          # Remove custom scheme — use default capacitor:// like Android (which works).
-          # The custom "Felcin" scheme causes window.location.protocol = "felcin:" which
-          # breaks Capacitor detection in firebase.ts → Firestore uses IndexedDB →
-          # IndexedDB on iOS WKWebView hangs indefinitely when network is active
-          # (fails fast on airplane mode — that was the clue).
-          config['ios'].pop('scheme', None)
-          # Keep WKAppBoundDomains restriction off for bundled builds.
           config['ios']['limitsNavigationsToAppBoundDomains'] = False
           with open('capacitor.config.json', 'w') as f:
               json.dump(config, f, indent=2)
-          print('capacitor.config.json patched:')
-          print(f"  appId : {config['appId']}")
-          print(f"  webDir: {config['webDir']}")
-          print('  server.url removed — self-contained bundle')
+          print('capacitor.config.json updated:')
+          print('  server.url = https://www.felcin.com')
           print('  limitsNavigationsToAppBoundDomains = False')
           PYEOF
 
