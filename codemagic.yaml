@@ -16,107 +16,21 @@
         XCODE_WORKSPACE: ios/App/App.xcworkspace
         XCODE_SCHEME: App
     scripts:
-      - name: Build felcin-next static bundle
-        script: |
-          set -e
-          git clone https://github.com/jjfitnessline23-dev/felcin-next.git /tmp/felcin-next
-          cd /tmp/felcin-next
-          npm install --legacy-peer-deps
-
-          python3 << 'PYEOF'
-          import os, re as _re
-
-          for root, dirs, files in os.walk('app/api'):
-              for f in files:
-                  if f == 'route.ts':
-                      p = os.path.join(root, f)
-                      c = open(p).read()
-                      nc = c.replace("'force-dynamic'", "'force-static'").replace('"force-dynamic"', '"force-static"')
-                      if nc != c:
-                          open(p, 'w').write(nc)
-
-          dynamic_routes = [
-              ('app/(protected)/challenges/[id]/page.tsx', 'id'),
-              ('app/(protected)/ghost/[id]/page.tsx', 'id'),
-              ('app/(protected)/live/[id]/page.tsx', 'id'),
-              ('app/(protected)/podcasts/[id]/page.tsx', 'id'),
-              ('app/(protected)/podcasts/live/[id]/page.tsx', 'id'),
-              ('app/(protected)/subscribe/[uid]/page.tsx', 'uid'),
-              ('app/(protected)/tag/[name]/page.tsx', 'name'),
-              ('app/(protected)/trainers/[uid]/page.tsx', 'uid'),
-              ('app/(protected)/training-sessions/[sessionId]/page.tsx', 'sessionId'),
-              ('app/(public)/run/live/[shareId]/page.tsx', 'shareId'),
-          ]
-          for path, key in dynamic_routes:
-              if os.path.isfile(path):
-                  open(path, 'w').write(
-                      'import { Suspense } from "react";\nimport PageClient from "./PageClient";\n\n'
-                      'export function generateStaticParams() { return [{ ' + key + ': "_" }]; }\n'
-                      'export const dynamicParams = false;\n\n'
-                      'export default function Page() { return <Suspense fallback={null}><PageClient /></Suspense>; }\n'
-                  )
-
-          suspense_pages = [
-              'app/(protected)/advertise/page.tsx',
-              'app/(protected)/badges/page.tsx',
-              'app/(protected)/comments/page.tsx',
-              'app/(protected)/creator/page.tsx',
-              'app/(protected)/earnings/page.tsx',
-              'app/(protected)/explore/page.tsx',
-              'app/(protected)/page.tsx',
-              'app/(protected)/private-chats/page.tsx',
-              'app/(protected)/training-sessions/page.tsx',
-          ]
-          for page in suspense_pages:
-              if os.path.isfile(page):
-                  cp = os.path.join(os.path.dirname(page), 'page.content.tsx')
-                  os.rename(page, cp)
-                  open(page, 'w').write(
-                      'import { Suspense } from "react";\nimport PageContent from "./page.content";\n'
-                      'export default function Page() { return <Suspense fallback={null}><PageContent /></Suspense>; }\n'
-                  )
-
-          up = 'app/(protected)/user-profile/page.tsx'
-          if os.path.isfile(up):
-              content = open(up).read()
-              content = _re.sub(r'export async function generateMetadata\b.*?\n\}', '', content, flags=_re.DOTALL)
-              content = _re.sub(r'async function fetchUserProfile\b.*?\n\}', '', content, flags=_re.DOTALL)
-              content = content.replace('import type { Metadata } from "next";\n', '')
-              if 'Suspense' not in content:
-                  content = content.replace('import PageClient from "./PageClient";',
-                      'import { Suspense } from "react";\nimport PageClient from "./PageClient";')
-              content = content.replace('return <PageClient />;', 'return <Suspense fallback={null}><PageClient /></Suspense>;')
-              open(up, 'w').write(content)
-          PYEOF
-
-          NEXT_PUBLIC_CAPACITOR_BUILD=true \
-          NEXT_PUBLIC_API_URL="https://www.felcin.com" \
-          NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY="${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY:-pk_test_51TeacHFq0Nd4lLkFwHZ7nutFk0jI0H4bmtffnaI92is7ym5KEVuXmppnVMgQhC9qP39zBhgzOukNYUE4yvtiwa0I00CycqtIbo}" \
-          npm run build
-
-          [ -f "out/index.html" ] || { echo "ERROR: static build failed"; exit 1; }
-          echo "Bundle: $(find out -name '*.html' | wc -l) pages"
-
-          find out/_next/static/chunks -name '*.js' | xargs perl -i -pe 's|fetch\("/api/|fetch("https://www.felcin.com/api/|g'
-          find out/_next/static/chunks -name '*.js' | xargs perl -i -pe "s|fetch\\('/api/|fetch('https://www.felcin.com/api/|g"
-          find out/_next/static/chunks -name '*.js' | xargs perl -i -pe 's|\`/api/|\`https://www.felcin.com/api/|g'
-
-      - name: Patch capacitor.config.json
+      - name: Patch capacitor.config.json for live URL
         script: |
           python3 << 'PYEOF'
           import json
           with open('capacitor.config.json', 'r') as f:
               config = json.load(f)
           config['appId'] = 'com.felcin.app'
-          config['webDir'] = '/tmp/felcin-next/out'
-          config.pop('server', None)
+          config['server'] = {'url': 'https://www.felcin.com', 'cleartext': False}
           if 'ios' not in config:
               config['ios'] = {}
           config['ios'].pop('scheme', None)
           config['ios']['limitsNavigationsToAppBoundDomains'] = False
           with open('capacitor.config.json', 'w') as f:
               json.dump(config, f, indent=2)
-          print('capacitor.config.json: bundled mode, scheme removed, webDir set')
+          print('capacitor.config.json: live URL mode — app loads from https://www.felcin.com')
           PYEOF
 
       - name: Install npm dependencies
