@@ -45,6 +45,7 @@
               ('app/(protected)/tag/[name]/page.tsx', 'name'),
               ('app/(protected)/trainers/[uid]/page.tsx', 'uid'),
               ('app/(protected)/training-sessions/[sessionId]/page.tsx', 'sessionId'),
+              ('app/(public)/run/live/[shareId]/page.tsx', 'shareId'),
           ]
           for path, key in dynamic_routes:
               if os.path.isfile(path):
@@ -682,6 +683,7 @@
               ('app/(protected)/tag/[name]/page.tsx', 'name'),
               ('app/(protected)/trainers/[uid]/page.tsx', 'uid'),
               ('app/(protected)/training-sessions/[sessionId]/page.tsx', 'sessionId'),
+              ('app/(public)/run/live/[shareId]/page.tsx', 'shareId'),
           ]
           for path, key in dynamic_routes:
               if os.path.isfile(path):
