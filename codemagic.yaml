@@ -927,11 +927,7 @@
           PYEOF
 
     triggering:
-      events:
-        - push
-      branch_patterns:
-        - pattern: master
-          include: true
+      events: []
 
     artifacts:
       - android/app/build/outputs/bundle/release/app-release.aab
