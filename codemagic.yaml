@@ -132,6 +132,19 @@
             npx cap add ios
           fi
 
+      - name: Set iOS deployment target to 16.0
+        script: |
+          python3 << 'PYEOF'
+          import re
+          path = 'ios/App/Podfile'
+          with open(path, 'r') as f:
+              content = f.read()
+          content = re.sub(r"platform :ios, '[0-9.]+'", "platform :ios, '16.0'", content)
+          with open(path, 'w') as f:
+              f.write(content)
+          print('Podfile deployment target updated to 16.0')
+          PYEOF
+
       - name: Capacitor sync
         script: npx cap sync ios
 
