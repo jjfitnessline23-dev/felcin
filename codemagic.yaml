@@ -172,9 +172,13 @@
           url_types = [u for u in url_types if u.get('CFBundleURLName') != 'GoogleSignIn']
           url_types.append({'CFBundleURLName': 'GoogleSignIn', 'CFBundleURLSchemes': [reversed_id]})
           plist['CFBundleURLTypes'] = url_types
+          # Location permission strings — required for iOS to show "While Using" dialog
+          plist['NSLocationWhenInUseUsageDescription'] = 'Felcin uses your location to track your running routes live on the map and save your PRs.'
+          plist['NSLocationAlwaysAndWhenInUseUsageDescription'] = 'Felcin uses your location to track running routes and show your position on the map.'
           with open(plist_path, 'wb') as f:
               plistlib.dump(plist, f, fmt=plistlib.FMT_XML)
           print(f'URL scheme registered: {reversed_id}')
+          print('Location permission keys added to Info.plist')
           PYEOF
 
       - name: Set app icon and splash screen
