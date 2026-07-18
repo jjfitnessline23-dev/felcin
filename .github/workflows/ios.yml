@@ -121,6 +121,42 @@ jobs:
           find out/_next/static/chunks -name '*.js' | xargs perl -i -pe "s|fetch\\('/api/|fetch('https://www.felcin.com/api/|g"
           find out/_next/static/chunks -name '*.js' | xargs perl -i -pe 's|\`/api/|\`https://www.felcin.com/api/|g'
 
+          # Self-host Material Symbols font so the bundle has zero external network
+          # requests on load. The Google Fonts <link rel="stylesheet"> is a render-
+          # blocking request from capacitor:// scheme — with internet it stalls
+          # indefinitely on WKWebView, causing the app to appear completely frozen.
+          # layout.tsx already points to /fonts/ms.css for Capacitor builds; this
+          # step downloads the actual files and places them in out/fonts/.
+          python3 << 'PYEOF'
+          import urllib.request, re, glob, os, sys
+
+          url = ("https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined"
+                 ":opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=block")
+          req = urllib.request.Request(url, headers={
+              "User-Agent": ("Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) "
+                             "AppleWebKit/605.1.15 (KHTML, like Gecko)")
+          })
+          try:
+              css = urllib.request.urlopen(req, timeout=30).read().decode()
+          except Exception as e:
+              print(f"WARNING: Could not download Material Symbols CSS: {e}", file=sys.stderr)
+              sys.exit(0)
+
+          os.makedirs("out/fonts", exist_ok=True)
+          woff2_urls = re.findall(r'https://fonts\.gstatic\.com/[^\)]+\.woff2', css)
+          for i, woff2_url in enumerate(woff2_urls):
+              fname = f"ms-{i}.woff2"
+              try:
+                  urllib.request.urlretrieve(woff2_url, f"out/fonts/{fname}")
+                  css = css.replace(woff2_url, f"/fonts/{fname}")
+                  print(f"Downloaded {fname}")
+              except Exception as e:
+                  print(f"WARNING: Could not download {woff2_url}: {e}", file=sys.stderr)
+
+          open("out/fonts/ms.css", "w").write(css)
+          print(f"Material Symbols self-hosted: {len(woff2_urls)} WOFF2 files -> out/fonts/")
+          PYEOF
+
       - name: Patch capacitor.config.json
         run: |
           python3 << 'PYEOF'
