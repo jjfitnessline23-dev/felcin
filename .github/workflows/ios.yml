@@ -297,20 +297,47 @@ jobs:
           import UIKit
           import Capacitor
           import WebKit
+          import SystemConfiguration
 
           class ViewController: CAPBridgeViewController {
+
+              // Called before the bridge initializes.
+              // Online -> live URL (always fresh); offline -> bundled webDir assets.
+              override func instanceDescriptor() -> CAPInstanceDescriptor {
+                  let descriptor = CAPInstanceDescriptor.init(at: Bundle.main.bundleURL, error: nil)
+                  if isNetworkReachable() {
+                      descriptor.serverURL = URL(string: "https://www.felcin.com")
+                  }
+                  return descriptor
+              }
+
+              private func isNetworkReachable() -> Bool {
+                  var flags = SCNetworkReachabilityFlags()
+                  var addr = sockaddr_in()
+                  addr.sin_family = sa_family_t(AF_INET)
+                  let ref = withUnsafePointer(to: &addr) {
+                      $0.withMemoryRebound(to: sockaddr.self, capacity: 1) {
+                          SCNetworkReachabilityCreateWithAddress(nil, $0)
+                      }
+                  }
+                  if let r = ref { SCNetworkReachabilityGetFlags(r, &flags) }
+                  return flags.contains(.reachable) && !flags.contains(.connectionRequired)
+              }
+
               override func viewDidLoad() {
                   super.viewDidLoad()
-                  self.view.backgroundColor = UIColor.black
+                  self.view.backgroundColor = .black
                   self.webView?.isOpaque = false
-                  self.webView?.backgroundColor = UIColor.black
-                  self.webView?.scrollView.backgroundColor = UIColor.black
+                  self.webView?.backgroundColor = .black
+                  self.webView?.scrollView.backgroundColor = .black
               }
+
               override func capacitorDidLoad() {
                   self.webView?.isOpaque = false
-                  self.webView?.backgroundColor = UIColor.black
-                  self.webView?.scrollView.backgroundColor = UIColor.black
+                  self.webView?.backgroundColor = .black
+                  self.webView?.scrollView.backgroundColor = .black
               }
+
               @available(iOS 15.0, *)
               override func webView(_ webView: WKWebView, requestMediaCapturePermissionFor origin: WKSecurityOrigin, initiatedByFrame frame: WKFrameInfo, type: WKMediaCaptureType, decisionHandler: @escaping (WKPermissionDecision) -> Void) {
                   decisionHandler(.grant)
@@ -464,7 +491,7 @@ jobs:
             DEVELOPMENT_TEAM=UWSVWR4VTX \
             CODE_SIGN_STYLE=Manual \
             CODE_SIGN_IDENTITY="Apple Distribution" \
-            MARKETING_VERSION=1.4 \
+            MARKETING_VERSION=1.5 \
             CURRENT_PROJECT_VERSION=$BUILD_NUMBER
 
           xcodebuild -exportArchive \
