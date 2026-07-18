@@ -46,6 +46,21 @@ jobs:
           export function deleteDB() { return Promise.resolve(); }
           IDBEOF
 
+          # Patch Firebase Auth's direct indexedDB.open() calls.
+          # IndexedDBLocalPersistence._isAvailable() opens a test database to check
+          # IDB availability. On WKWebView/capacitor:// this triggers the WebKit
+          # deadlock even when browserLocalPersistence is configured (the IDB
+          # persistence class is always in the bundle and its _isAvailable is called).
+          # Make _openDatabase() return a rejected Promise — fails fast, no native IDB.
+          find node_modules/@firebase/auth/dist/esm -name "*.js" \
+            -exec perl -i -pe \
+              's/const request = indexedDB\.open\(DB_NAME, DB_VERSION\);/const _blocked=1; return Promise.reject(new Error("IDB_BLOCKED"));/g' \
+            {} \; 2>/dev/null || true
+          find node_modules/@firebase/auth/dist/esm -name "*.js" \
+            -exec perl -i -pe \
+              's/const request = indexedDB\.deleteDatabase\(DB_NAME\);/return Promise.resolve(); const _bd=1;/g' \
+            {} \; 2>/dev/null || true
+
           python3 << 'PYEOF'
           import os, re as _re
 
