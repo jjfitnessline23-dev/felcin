@@ -15,11 +15,14 @@ jobs:
       BUNDLE_ID: com.felcin.app
       XCODE_WORKSPACE: ios/App/App.xcworkspace
       XCODE_SCHEME: App
-      BUILD_NUMBER: ${{ github.run_number + 200 }}
+      BUILD_NUMBER: ${{ github.run_number }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Set build number
+        run: echo "BUILD_NUMBER=$(( ${{ github.run_number }} + 200 ))" >> $GITHUB_ENV
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
