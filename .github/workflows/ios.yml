@@ -36,6 +36,16 @@ jobs:
           cd /tmp/felcin-next
           npm install --legacy-peer-deps
 
+          # Replace idb's openDB with a no-op for the Capacitor build.
+          # On WKWebView, window.indexedDB.open is a non-configurable own property —
+          # JS prototype patches cannot intercept it. @firebase/app uses idb ONLY for
+          # the heartbeat service (non-critical). Returning a pending Promise means the
+          # heartbeat silently waits forever; auth, firestore, storage are unaffected.
+          cat > node_modules/idb/build/index.js << 'IDBEOF'
+          export function openDB() { return new Promise(function() {}); }
+          export function deleteDB() { return Promise.resolve(); }
+          IDBEOF
+
           python3 << 'PYEOF'
           import os, re as _re
 
@@ -105,6 +115,7 @@ jobs:
           NEXT_PUBLIC_CAPACITOR_BUILD=true \
           NEXT_PUBLIC_API_URL="https://www.felcin.com" \
           NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY="${{ secrets.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY }}" \
+          NEXT_PUBLIC_MAPTILER_KEY="9C6j1Ypd0rgipW4RnpiV" \
           npm run build
 
           [ -f "out/index.html" ] || { echo "ERROR: static build failed"; exit 1; }
@@ -122,16 +133,16 @@ jobs:
           import glob
           SCRIPT = ('<script>(function(){'
               'try{'
-              'var f=function(){'
-              'var r=new EventTarget();'
-              'r.result=null;r.readyState="done";'
-              'r.error=new DOMException("IndexedDB blocked","SecurityError");'
-              'r.onsuccess=null;r.onerror=null;r.onblocked=null;r.onupgradeneeded=null;'
-              'return r;};'
+              'var f=function(){return new EventTarget();};'
+              'var dp=function(obj,prop){'
+              'try{Object.defineProperty(obj,prop,{value:f,writable:true,configurable:true});}catch(e){try{obj[prop]=f;}catch(ee){}}'
+              '};'
               'if(window.IDBFactory){'
-              'IDBFactory.prototype.open=f;'
-              'IDBFactory.prototype.deleteDatabase=f;}'
-              'try{window.indexedDB.open=f;}catch(e){}'
+              'dp(IDBFactory.prototype,"open");'
+              'dp(IDBFactory.prototype,"deleteDatabase");'
+              '}'
+              'try{dp(window.indexedDB,"open");}catch(e){}'
+              'try{Object.defineProperty(window,"indexedDB",{get:function(){return{open:f,deleteDatabase:f,databases:function(){return Promise.resolve([]);},cmp:function(){return 0;}};},configurable:true});}catch(e){}'
               '}catch(e){}'
               '})();</script>')
           files = glob.glob('out/**/*.html', recursive=True) + glob.glob('out/*.html')
