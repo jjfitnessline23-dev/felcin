@@ -157,6 +157,51 @@ jobs:
           print(f"Material Symbols self-hosted: {len(woff2_urls)} WOFF2 files -> out/fonts/")
           PYEOF
 
+          # Dump index.html <head> to build log so we can see every external resource
+          python3 << 'PYEOF'
+          import re
+          try:
+              c = open('out/index.html').read()
+              m = re.search(r'<head>(.*?)</head>', c, re.DOTALL)
+              print('=== out/index.html <head> ===')
+              print((m.group(1) if m else c)[:4000])
+          except Exception as e:
+              print(f'Could not read index.html: {e}')
+          PYEOF
+
+          # Inject diagnostic overlay into every HTML file.
+          # Shows on-screen what stage the page is at — helps pinpoint where
+          # execution freezes on device without needing Safari remote debug.
+          python3 << 'PYEOF'
+          import glob
+          DIAG = ('<script>(function(){'
+              'var el=document.createElement("div");'
+              'el.id="cap-dbg";'
+              'el.style="position:fixed;top:0;left:0;right:0;z-index:99999;'
+              'background:rgba(0,180,0,0.95);color:#000;'
+              'font:bold 11px monospace;padding:5px 8px;pointer-events:none";'
+              'el.textContent="[1]JS";'
+              'function show(){(document.body||document.documentElement).prepend(el);}'
+              'setTimeout(show,0);'
+              'document.addEventListener("DOMContentLoaded",function(){el.textContent+=" [2]DOM";show();});'
+              'window.addEventListener("load",function(){el.textContent+=" [3]LOAD";});'
+              'var n=0;setInterval(function(){'
+              'n++;el.textContent=el.textContent.replace(/ tick\\d+/,"")+" tick"+n;'
+              '},1000);'
+              'window.addEventListener("error",function(e){'
+              'el.textContent+=" ERR:"+String(e.message).slice(0,30);});'
+              '})();</script>')
+          files = glob.glob('out/**/*.html', recursive=True) + glob.glob('out/*.html')
+          count = 0
+          for path in files:
+              c = open(path).read()
+              if '<head>' in c and 'cap-dbg' not in c:
+                  c = c.replace('<head>', '<head>' + DIAG, 1)
+                  open(path, 'w').write(c)
+                  count += 1
+          print(f'Diagnostic overlay injected into {count} HTML files')
+          PYEOF
+
       - name: Patch capacitor.config.json
         run: |
           python3 << 'PYEOF'
