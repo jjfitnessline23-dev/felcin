@@ -103,6 +103,33 @@ workflows:
           find out/_next/static/chunks -name '*.js' | xargs perl -i -pe "s|fetch\\('/api/|fetch('https://www.felcin.com/api/|g"
           find out/_next/static/chunks -name '*.js' | xargs perl -i -pe 's|\`/api/|\`https://www.felcin.com/api/|g'
 
+          python3 << 'PYEOF'
+          import glob
+          SCRIPT = ('<script>(function(){'
+              'try{'
+              'var f=function(){'
+              'var r=new EventTarget();'
+              'r.result=null;r.readyState="done";'
+              'r.error=new DOMException("IndexedDB blocked","SecurityError");'
+              'r.onsuccess=null;r.onerror=null;r.onblocked=null;r.onupgradeneeded=null;'
+              'return r;};'
+              'if(window.IDBFactory){'
+              'IDBFactory.prototype.open=f;'
+              'IDBFactory.prototype.deleteDatabase=f;}'
+              'try{window.indexedDB.open=f;}catch(e){}'
+              '}catch(e){}'
+              '})();</script>')
+          files = glob.glob('out/**/*.html', recursive=True) + glob.glob('out/*.html')
+          count = 0
+          for path in files:
+              c = open(path).read()
+              if '<head>' in c and 'IDBFactory' not in c:
+                  c = c.replace('<head>', '<head>' + SCRIPT, 1)
+                  open(path, 'w').write(c)
+                  count += 1
+          print(f'IndexedDB block injected into {count} HTML files')
+          PYEOF
+
       - name: Patch capacitor.config.json
         script: |
           python3 << 'PYEOF'
