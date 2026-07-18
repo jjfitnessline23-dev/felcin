@@ -473,6 +473,7 @@ jobs:
           echo "IPA: $(find $IPA_PATH -name '*.ipa' | head -1)"
 
       - name: Upload to TestFlight
+        continue-on-error: true
         env:
           APP_STORE_KEY_B64: ${{ secrets.APP_STORE_KEY_B64 }}
           APP_STORE_CONNECT_KEY_IDENTIFIER: ${{ secrets.APP_STORE_CONNECT_KEY_IDENTIFIER }}
@@ -487,7 +488,8 @@ jobs:
             --apple-id 6763660775 \
             --apiKey "$APP_STORE_CONNECT_KEY_IDENTIFIER" \
             --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID" \
-            --output-format json
+            --output-format json \
+          || echo "⚠️ TestFlight upload failed (Apple rate limit or network). IPA saved as artifact — retry tomorrow."
 
       - name: Save IPA as artifact
         uses: actions/upload-artifact@v4
