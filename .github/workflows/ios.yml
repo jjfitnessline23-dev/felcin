@@ -182,7 +182,12 @@ jobs:
           config.pop('server', None)
           if 'ios' not in config:
               config['ios'] = {}
-          config['ios'].pop('scheme', None)
+          # Use https://www.felcin.com as the WKWebView origin instead of
+          # capacitor://localhost. The IDB deadlock only fires on the capacitor://
+          # custom scheme + network. https:// scheme is unaffected. Also fixes
+          # Firestore CORS (origin matches the authorized Firebase domain).
+          config['ios']['scheme'] = 'https'
+          config['ios']['hostname'] = 'www.felcin.com'
           config['ios']['limitsNavigationsToAppBoundDomains'] = False
           with open('capacitor.config.json', 'w') as f:
               json.dump(config, f, indent=2)
