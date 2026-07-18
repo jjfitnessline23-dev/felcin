@@ -15,7 +15,7 @@ jobs:
       BUNDLE_ID: com.felcin.app
       XCODE_WORKSPACE: ios/App/App.xcworkspace
       XCODE_SCHEME: App
-      BUILD_NUMBER: ${{ github.run_number }}
+      BUILD_NUMBER: ${{ github.run_number + 200 }}
 
     steps:
       - name: Checkout
