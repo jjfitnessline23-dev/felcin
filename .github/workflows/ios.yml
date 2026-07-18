@@ -36,30 +36,11 @@ jobs:
           cd /tmp/felcin-next
           npm install --legacy-peer-deps
 
-          # Replace idb's openDB with a no-op for the Capacitor build.
-          # On WKWebView, window.indexedDB.open is a non-configurable own property —
-          # JS prototype patches cannot intercept it. @firebase/app uses idb ONLY for
-          # the heartbeat service (non-critical). Returning a pending Promise means the
-          # heartbeat silently waits forever; auth, firestore, storage are unaffected.
+          # No-op idb's openDB — @firebase/app heartbeat uses it non-critically.
           cat > node_modules/idb/build/index.js << 'IDBEOF'
           export function openDB() { return new Promise(function() {}); }
           export function deleteDB() { return Promise.resolve(); }
           IDBEOF
-
-          # Patch Firebase Auth's direct indexedDB.open() calls.
-          # IndexedDBLocalPersistence._isAvailable() opens a test database to check
-          # IDB availability. On WKWebView/capacitor:// this triggers the WebKit
-          # deadlock even when browserLocalPersistence is configured (the IDB
-          # persistence class is always in the bundle and its _isAvailable is called).
-          # Make _openDatabase() return a rejected Promise — fails fast, no native IDB.
-          find node_modules/@firebase/auth/dist/esm -name "*.js" \
-            -exec perl -i -pe \
-              's/const request = indexedDB\.open\(DB_NAME, DB_VERSION\);/const _blocked=1; return Promise.reject(new Error("IDB_BLOCKED"));/g' \
-            {} \; 2>/dev/null || true
-          find node_modules/@firebase/auth/dist/esm -name "*.js" \
-            -exec perl -i -pe \
-              's/const request = indexedDB\.deleteDatabase\(DB_NAME\);/return Promise.resolve(); const _bd=1;/g' \
-            {} \; 2>/dev/null || true
 
           python3 << 'PYEOF'
           import os, re as _re
@@ -182,12 +163,8 @@ jobs:
           config.pop('server', None)
           if 'ios' not in config:
               config['ios'] = {}
-          # Use https://www.felcin.com as the WKWebView origin instead of
-          # capacitor://localhost. The IDB deadlock only fires on the capacitor://
-          # custom scheme + network. https:// scheme is unaffected. Also fixes
-          # Firestore CORS (origin matches the authorized Firebase domain).
-          config['ios']['scheme'] = 'https'
-          config['ios']['hostname'] = 'www.felcin.com'
+          config['ios'].pop('scheme', None)
+          config['ios'].pop('hostname', None)
           config['ios']['limitsNavigationsToAppBoundDomains'] = False
           with open('capacitor.config.json', 'w') as f:
               json.dump(config, f, indent=2)
@@ -203,9 +180,8 @@ jobs:
 
       - name: Add iOS platform
         run: |
-          if [ ! -d "ios" ]; then
-            npx cap add ios || true
-          fi
+          rm -rf ios
+          npx cap add ios
 
       - name: Patch Podfile deployment target to 16.0
         run: |
