@@ -121,37 +121,6 @@ jobs:
           find out/_next/static/chunks -name '*.js' | xargs perl -i -pe "s|fetch\\('/api/|fetch('https://www.felcin.com/api/|g"
           find out/_next/static/chunks -name '*.js' | xargs perl -i -pe 's|\`/api/|\`https://www.felcin.com/api/|g'
 
-          # Inject IndexedDB block as the very first <script> in every HTML file.
-          # WKUserScript added after super.viewDidLoad() is too late — Capacitor has
-          # already started loading the page. An inline <script> at the top of <head>
-          # is guaranteed to execute before any external JS bundle runs.
-          python3 << 'PYEOF'
-          import glob
-          SCRIPT = ('<script>(function(){'
-              'try{'
-              'var f=function(){return new EventTarget();};'
-              'var dp=function(obj,prop){'
-              'try{Object.defineProperty(obj,prop,{value:f,writable:true,configurable:true});}catch(e){try{obj[prop]=f;}catch(ee){}}'
-              '};'
-              'if(window.IDBFactory){'
-              'dp(IDBFactory.prototype,"open");'
-              'dp(IDBFactory.prototype,"deleteDatabase");'
-              '}'
-              'try{dp(window.indexedDB,"open");}catch(e){}'
-              'try{Object.defineProperty(window,"indexedDB",{get:function(){return{open:f,deleteDatabase:f,databases:function(){return Promise.resolve([]);},cmp:function(){return 0;}};},configurable:true});}catch(e){}'
-              '}catch(e){}'
-              '})();</script>')
-          files = glob.glob('out/**/*.html', recursive=True) + glob.glob('out/*.html')
-          count = 0
-          for path in files:
-              c = open(path).read()
-              if '<head>' in c and 'IDBFactory' not in c:
-                  c = c.replace('<head>', '<head>' + SCRIPT, 1)
-                  open(path, 'w').write(c)
-                  count += 1
-          print(f'IndexedDB block injected into {count} HTML files')
-          PYEOF
-
       - name: Patch capacitor.config.json
         run: |
           python3 << 'PYEOF'
