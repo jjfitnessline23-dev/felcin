@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <!-- Solid background (no filters — sharp renders this correctly) -->
+  <rect width="1024" height="1024" rx="220" fill="#080808"/>
+
+  <!-- Ghost body -->
+  <path d="M 302 455 A 210 210 0 0 0 722 455 L 722 672 Q 652 752 582 672 Q 512 752 442 672 Q 372 752 302 672 Z" fill="white"/>
+
+  <!-- Eyes -->
+  <circle cx="414" cy="406" r="50" fill="#080808"/>
+  <circle cx="610" cy="406" r="50" fill="#080808"/>
+  <circle cx="430" cy="390" r="16" fill="white"/>
+  <circle cx="626" cy="390" r="16" fill="white"/>
+
+  <!-- EKG line — purple, no filters, just solid strokes -->
+  <!-- Outer glow simulation using thicker strokes with opacity -->
+  <path d="M 30,562 L 318,562 L 338,542 L 356,562 L 386,562 L 404,580 L 432,248 L 458,598 L 480,546 L 508,562 C 528,562 530,496 552,562 L 994,562"
+        fill="none" stroke="#5b21b6" stroke-width="28" stroke-linecap="round" stroke-linejoin="round" opacity="0.4"/>
+  <path d="M 30,562 L 318,562 L 338,542 L 356,562 L 386,562 L 404,580 L 432,248 L 458,598 L 480,546 L 508,562 C 528,562 530,496 552,562 L 994,562"
+        fill="none" stroke="#a855f7" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M 30,562 L 318,562 L 338,542 L 356,562 L 386,562 L 404,580 L 432,248 L 458,598 L 480,546 L 508,562 C 528,562 530,496 552,562 L 994,562"
+        fill="none" stroke="#f3e8ff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" opacity="0.8"/>
+</svg>

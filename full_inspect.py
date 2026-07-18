@@ -1,0 +1,48 @@
+import paramiko, sys
+sys.stdout.reconfigure(encoding="utf-8")
+
+HOST = "82.25.87.145"; PORT = 65002; USER = "u461432591"; PASS = "JJ@dagym1!"
+client = paramiko.SSHClient()
+client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+client.connect(HOST, port=PORT, username=USER, password=PASS, timeout=30)
+
+def run(label, cmd):
+    print(f"\n{'='*60}\n{label}\n{'='*60}")
+    _, stdout, stderr = client.exec_command(cmd)
+    out = stdout.read().decode("utf-8", errors="replace").strip()
+    err = stderr.read().decode("utf-8", errors="replace").strip()
+    if out: print(out)
+    if err: print("STDERR:", err)
+    return out
+
+run("ALL NODE PROCESSES", "ps aux | grep -E 'node|next|passenger' | grep -v grep")
+run("PROCESS MEMORY/CPU DETAIL", "ps -eo pid,ppid,user,pcpu,pmem,rss,vsz,etime,cmd | grep -E 'node|next' | grep -v grep")
+run("SERVER LOAD + UPTIME", "uptime && echo '---' && cat /proc/loadavg")
+run("MEMORY OVERVIEW", "free -m")
+run("DISK USAGE", "df -h /home/u461432591/ 2>/dev/null | head -5")
+run("LVE / CGROUP LIMITS (our user)", "cat /proc/self/cgroup 2>/dev/null; cat /sys/fs/cgroup/memory/user.slice/user-$(id -u).slice/memory.limit_in_bytes 2>/dev/null || echo NO_CGROUP_LIMIT")
+run("OPEN FILE DESCRIPTORS (node)", "ls /proc/$(pgrep -f 'next-server' | head -1)/fd 2>/dev/null | wc -l || echo NO_PID")
+run("NODE PROCESS STATUS", "cat /proc/$(pgrep -f 'next-server' | head -1)/status 2>/dev/null | grep -E 'Vm|Threads|FDSize|State' || echo NO_STATUS")
+run("PASSENGER STATUS (if accessible)", "passenger-status 2>/dev/null || passenger status 2>/dev/null || echo NOT_ACCESSIBLE")
+run("HTACCESS CURRENT", "cat /home/u461432591/domains/felcin.com/public_html/.htaccess")
+run("SERVER-WRAPPER.JS", "cat /home/u461432591/domains/felcin.com/nodejs/server-wrapper.js")
+run("NODEJS DIR FULL", "ls -la /home/u461432591/domains/felcin.com/nodejs/")
+run("NODEJS/TMP DIR", "ls -la /home/u461432591/domains/felcin.com/nodejs/tmp/")
+run("NODEJS STDERR LOG", "cat /home/u461432591/domains/felcin.com/nodejs/stderr.log")
+run("PUBLIC_HTML STDERR LOG", "cat /home/u461432591/domains/felcin.com/public_html/stderr.log")
+run("CAGEFS NODE LOG", "cat /home/u461432591/.cagefs/tmp/felcin_node.log 2>/dev/null || echo EMPTY")
+run("CAGEFS FELCIN2 LOG", "cat /home/u461432591/.cagefs/tmp/felcin2.log 2>/dev/null || echo EMPTY")
+run("WATCHDOG LOG", "cat /home/u461432591/.cagefs/tmp/felcin_watchdog.log 2>/dev/null || echo EMPTY")
+run("ALL LOG FILES", "find /home/u461432591 -name '*.log' -newer /home/u461432591/domains/felcin.com/nodejs/server-wrapper.js 2>/dev/null")
+run("RESTART.TXT TIMESTAMP", "stat /home/u461432591/domains/felcin.com/nodejs/tmp/restart.txt 2>/dev/null")
+run("PID FILE", "cat /tmp/felcin-next.pid 2>/dev/null && echo '--- process check:' && kill -0 $(cat /tmp/felcin-next.pid 2>/dev/null) 2>&1 || echo NO_PID")
+run("CURL RESPONSE HEADERS", "curl -sI --max-time 10 https://felcin.com/ | head -20")
+run("NODE VERSION", "/opt/alt/alt-nodejs22/root/usr/bin/node --version")
+run("SERVER.JS HEAD", "head -20 /home/u461432591/domains/felcin.com/nodejs/server.js")
+run("ANY CRON ENTRIES", "crontab -l 2>/dev/null || echo NO_CRONTAB")
+run("SYSTEMD SERVICES (ours)", "systemctl list-units --user 2>/dev/null | grep -i felcin || echo NO_SYSTEMD")
+run("INOTIFY WATCHES", "cat /proc/sys/fs/inotify/max_user_watches 2>/dev/null")
+run("LAST 20 KERN MESSAGES RE NODE", "dmesg 2>/dev/null | grep -i 'oom\\|kill\\|felcin\\|node' | tail -20 || echo NONE")
+
+client.close()
+print("\n=== INSPECTION COMPLETE ===")

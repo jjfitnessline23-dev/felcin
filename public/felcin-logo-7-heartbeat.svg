@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <filter id="glow7" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="10" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1024" height="1024" rx="225" fill="#0a0a0a"/>
+
+  <!-- Ghost body -->
+  <path d="M 290 490 A 222 222 0 0 0 734 490 L 734 700 Q 660 780 586 700 Q 512 780 438 700 Q 364 780 290 700 Z"
+        fill="white"/>
+
+  <!-- Heartbeat / EKG line across ghost body (purple, glowing) -->
+  <!-- Line goes from left edge through ghost body to right edge -->
+  <polyline
+    points="110,590 250,590 310,590 350,590 385,590 400,440 420,720 440,590 480,590 512,590 545,590 565,440 585,720 605,590 640,590 680,590 734,590 900,590"
+    fill="none"
+    stroke="#a78bfa"
+    stroke-width="14"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    filter="url(#glow7)"/>
+
+  <!-- Eyes (above the heartbeat line) -->
+  <circle cx="416" cy="440" r="42" fill="#0a0a0a"/>
+  <circle cx="608" cy="440" r="42" fill="#0a0a0a"/>
+  <circle cx="428" cy="428" r="14" fill="white"/>
+  <circle cx="620" cy="428" r="14" fill="white"/>
+</svg>
