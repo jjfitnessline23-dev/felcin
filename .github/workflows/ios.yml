@@ -42,6 +42,32 @@ jobs:
           export function deleteDB() { return Promise.resolve(); }
           IDBEOF
 
+          # CRITICAL: Patch @firebase/util to prevent direct window.indexedDB.open().
+          # @firebase/app calls validateIndexedDBOpenable() which calls self.indexedDB.open()
+          # directly — bypassing the idb library noop above. On WKWebView with
+          # capacitor:// scheme + active network, this native IndexedDB.open() call
+          # triggers a WebKit bug that freezes ALL JS async callbacks (setTimeout,
+          # Promises, onAuthStateChanged) permanently.
+          # Fix: make isIndexedDBAvailable() return false so validateIndexedDBOpenable
+          # is never called.
+          python3 << 'PYEOF'
+          for path in [
+              "node_modules/@firebase/util/dist/index.esm.js",
+              "node_modules/@firebase/util/dist/index.cjs.js",
+          ]:
+              try:
+                  c = open(path).read()
+                  patched = c.replace("typeof indexedDB === 'object'", "false")
+                  patched = patched.replace('typeof indexedDB === "object"', "false")
+                  if patched != c:
+                      open(path, 'w').write(patched)
+                      print(f"IndexedDB blocked: {path}")
+                  else:
+                      print(f"WARNING: pattern not found in {path}")
+              except Exception as e:
+                  print(f"Could not patch {path}: {e}")
+          PYEOF
+
           python3 << 'PYEOF'
           import os, re as _re
 
