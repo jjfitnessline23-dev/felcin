@@ -196,13 +196,17 @@ jobs:
           with open('capacitor.config.json', 'r') as f:
               config = json.load(f)
           config['appId'] = 'com.felcin.app'
-          config.pop('server', None)
+          # Keep server.url as the default — live URL is the safe fallback if
+          # the network check in instanceDescriptor() can't determine status.
+          # webDir is still set so cap sync copies www/ into the iOS bundle
+          # for offline use (instanceDescriptor() clears serverURL when offline).
+          config['server'] = {'url': 'https://www.felcin.com', 'cleartext': False}
           config['webDir'] = 'www'
           if 'ios' not in config:
               config['ios'] = {}
           with open('capacitor.config.json', 'w') as f:
               json.dump(config, f, indent=2)
-          print("Mode: bundled static export -> www/")
+          print("Mode: live URL default + bundled offline fallback")
           PYEOF
 
       - name: Install npm dependencies
@@ -295,31 +299,36 @@ jobs:
           import UIKit
           import Capacitor
           import WebKit
-          import SystemConfiguration
+          import Network
 
           class ViewController: CAPBridgeViewController {
 
-              // Called before the bridge initializes.
-              // Online -> live URL (always fresh); offline -> bundled webDir assets.
+              // Config default is server.url (live URL). Only clear it when
+              // we can confirm the device is offline — so if the check times
+              // out or is uncertain, the app still loads from Vercel.
               override func instanceDescriptor() -> CAPInstanceDescriptor {
                   let descriptor = CAPInstanceDescriptor.init(at: Bundle.main.bundleURL, error: nil)
-                  if isNetworkReachable() {
-                      descriptor.serverURL = URL(string: "https://www.felcin.com")
+                  if isDefinitelyOffline() {
+                      descriptor.serverURL = nil  // use bundled webDir assets
                   }
                   return descriptor
               }
 
-              private func isNetworkReachable() -> Bool {
-                  var flags = SCNetworkReachabilityFlags()
-                  var addr = sockaddr_in()
-                  addr.sin_family = sa_family_t(AF_INET)
-                  let ref = withUnsafePointer(to: &addr) {
-                      $0.withMemoryRebound(to: sockaddr.self, capacity: 1) {
-                          SCNetworkReachabilityCreateWithAddress(nil, $0)
-                      }
+              // Returns true only when we are CERTAIN there is no network path.
+              // Defaults to false (online) on timeout or uncertainty.
+              private func isDefinitelyOffline() -> Bool {
+                  let monitor = NWPathMonitor()
+                  var offline = false
+                  let sem = DispatchSemaphore(value: 0)
+                  monitor.pathUpdateHandler = { path in
+                      offline = path.status != .satisfied
+                      sem.signal()
                   }
-                  if let r = ref { SCNetworkReachabilityGetFlags(r, &flags) }
-                  return flags.contains(.reachable) && !flags.contains(.connectionRequired)
+                  monitor.start(queue: DispatchQueue.global(qos: .userInitiated))
+                  let result = sem.wait(timeout: .now() + 0.5)
+                  monitor.cancel()
+                  // Timed out -> assume online (live URL is the safe default)
+                  return result == .success && offline
               }
 
               override func viewDidLoad() {
