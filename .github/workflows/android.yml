@@ -1,11 +1,12 @@
 name: Android Build
 
 on:
+  # Disabled — using Codemagic for Android builds
   workflow_dispatch:
-  # Uncomment when Play Console Data Safety is approved and app transfer completes:
-  # push:
-  #   branches:
-  #     - master
+    inputs:
+      reason:
+        description: 'Reason for manual trigger (emergency only)'
+        required: false
 
 jobs:
   build:

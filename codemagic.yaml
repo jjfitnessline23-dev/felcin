@@ -1,5 +1,6 @@
 workflows:
 
+  # ── iOS ─────────────────────────────────────────────────────────────────────
   ios-app-store:
     name: Felcin iOS - App Store
     max_build_duration: 120
@@ -19,138 +20,25 @@ workflows:
 
     scripts:
 
-      - name: Build static web bundle
-        script: |
-          set -e
-          git clone https://github.com/jjfitnessline23-dev/felcin-next.git /tmp/felcin-next
-          cd /tmp/felcin-next
-          npm install --legacy-peer-deps
-
-          python3 << 'PYEOF'
-          import os, re
-
-          for root, dirs, files in os.walk('app/api'):
-              for f in files:
-                  if f == 'route.ts':
-                      p = os.path.join(root, f)
-                      c = open(p).read()
-                      nc = c.replace("'force-dynamic'","'force-static'").replace('"force-dynamic"','"force-static"')
-                      if nc != c: open(p,'w').write(nc)
-
-          dynamic_routes = [
-              ('app/(protected)/challenges/[id]/page.tsx','id'),
-              ('app/(protected)/ghost/[id]/page.tsx','id'),
-              ('app/(protected)/live/[id]/page.tsx','id'),
-              ('app/(protected)/podcasts/[id]/page.tsx','id'),
-              ('app/(protected)/podcasts/live/[id]/page.tsx','id'),
-              ('app/(protected)/subscribe/[uid]/page.tsx','uid'),
-              ('app/(protected)/tag/[name]/page.tsx','name'),
-              ('app/(protected)/trainers/[uid]/page.tsx','uid'),
-              ('app/(protected)/training-sessions/[sessionId]/page.tsx','sessionId'),
-              ('app/(public)/run/live/[shareId]/page.tsx','shareId'),
-          ]
-          for path, key in dynamic_routes:
-              if os.path.isfile(path):
-                  open(path,'w').write(
-                      'import { Suspense } from "react";\nimport PageClient from "./PageClient";\n\n'
-                      'export function generateStaticParams() { return [{ '+key+': "_" }]; }\n'
-                      'export const dynamicParams = false;\n\n'
-                      'export default function Page() { return <Suspense fallback={null}><PageClient /></Suspense>; }\n'
-                  )
-
-          suspense_pages = [
-              'app/(protected)/advertise/page.tsx',
-              'app/(protected)/badges/page.tsx',
-              'app/(protected)/comments/page.tsx',
-              'app/(protected)/creator/page.tsx',
-              'app/(protected)/earnings/page.tsx',
-              'app/(protected)/explore/page.tsx',
-              'app/(protected)/page.tsx',
-              'app/(protected)/private-chats/page.tsx',
-              'app/(protected)/training-sessions/page.tsx',
-          ]
-          for page in suspense_pages:
-              if os.path.isfile(page):
-                  cp = os.path.join(os.path.dirname(page),'page.content.tsx')
-                  os.rename(page, cp)
-                  open(page,'w').write(
-                      'import { Suspense } from "react";\nimport PageContent from "./page.content";\n'
-                      'export default function Page() { return <Suspense fallback={null}><PageContent /></Suspense>; }\n'
-                  )
-
-          up = 'app/(protected)/user-profile/page.tsx'
-          if os.path.isfile(up):
-              content = open(up).read()
-              content = re.sub(r'export async function generateMetadata\b.*?\n\}','',content,flags=re.DOTALL)
-              content = re.sub(r'async function fetchUserProfile\b.*?\n\}','',content,flags=re.DOTALL)
-              content = content.replace('import type { Metadata } from "next";\n','')
-              if 'Suspense' not in content:
-                  content = content.replace('import PageClient from "./PageClient";',
-                      'import { Suspense } from "react";\nimport PageClient from "./PageClient";')
-              content = content.replace('return <PageClient />;','return <Suspense fallback={null}><PageClient /></Suspense>;')
-              open(up,'w').write(content)
-          PYEOF
-
-          NEXT_PUBLIC_CAPACITOR_BUILD=true \
-          NEXT_PUBLIC_API_URL="https://www.felcin.com" \
-          NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY="${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY:-pk_test_51TeacHFq0Nd4lLkFwHZ7nutFk0jI0H4bmtffnaI92is7ym5KEVuXmppnVMgQhC9qP39zBhgzOukNYUE4yvtiwa0I00CycqtIbo}" \
-          npm run build
-
-          [ -f "out/index.html" ] || { echo "ERROR: static build failed"; exit 1; }
-          echo "Pages: $(find out -name '*.html' | wc -l)"
-
-          find out/_next/static/chunks -name '*.js' | xargs perl -i -pe 's|fetch\("/api/|fetch("https://www.felcin.com/api/|g'
-          find out/_next/static/chunks -name '*.js' | xargs perl -i -pe "s|fetch\\('/api/|fetch('https://www.felcin.com/api/|g"
-          find out/_next/static/chunks -name '*.js' | xargs perl -i -pe 's|\`/api/|\`https://www.felcin.com/api/|g'
-
-          python3 << 'PYEOF'
-          import glob
-          SCRIPT = ('<script>(function(){'
-              'try{'
-              'var f=function(){'
-              'var r=new EventTarget();'
-              'r.result=null;r.readyState="done";'
-              'r.error=new DOMException("IndexedDB blocked","SecurityError");'
-              'r.onsuccess=null;r.onerror=null;r.onblocked=null;r.onupgradeneeded=null;'
-              'return r;};'
-              'if(window.IDBFactory){'
-              'IDBFactory.prototype.open=f;'
-              'IDBFactory.prototype.deleteDatabase=f;}'
-              'try{window.indexedDB.open=f;}catch(e){}'
-              '}catch(e){}'
-              '})();</script>')
-          files = glob.glob('out/**/*.html', recursive=True) + glob.glob('out/*.html')
-          count = 0
-          for path in files:
-              c = open(path).read()
-              if '<head>' in c and 'IDBFactory' not in c:
-                  c = c.replace('<head>', '<head>' + SCRIPT, 1)
-                  open(path, 'w').write(c)
-                  count += 1
-          print(f'IndexedDB block injected into {count} HTML files')
-          PYEOF
-
-      - name: Patch capacitor.config.json
+      - name: Patch capacitor.config.json (Live URL mode)
         script: |
           python3 << 'PYEOF'
           import json
           with open('capacitor.config.json') as f:
-              c = json.load(f)
-          c['appId'] = 'com.felcin.app'
-          c['webDir'] = '/tmp/felcin-next/out'
-          c.pop('server', None)
-          c.setdefault('ios', {})
-          c['ios'].pop('scheme', None)
-          c['ios']['limitsNavigationsToAppBoundDomains'] = False
-          with open('capacitor.config.json','w') as f:
-              json.dump(c, f, indent=2)
-          print('capacitor.config.json: bundled mode')
+              config = json.load(f)
+          config['appId'] = 'com.felcin.app'
+          # Live URL — app loads from Vercel at runtime, no bundled static export.
+          config['server'] = {'url': 'https://www.felcin.com', 'cleartext': False}
+          config.pop('webDir', None)
+          config.setdefault('ios', {})
+          with open('capacitor.config.json', 'w') as f:
+              json.dump(config, f, indent=2)
+          print('Mode: live URL -> https://www.felcin.com')
           PYEOF
 
       - name: Install dependencies
         script: |
           npm install --legacy-peer-deps
-          npm install @capacitor-firebase/firestore --legacy-peer-deps 2>/dev/null || true
           npm install -g @capacitor/cli
 
       - name: Add iOS platform (fresh)
@@ -165,7 +53,7 @@ workflows:
           path = 'ios/App/Podfile'
           content = open(path).read()
           content = re.sub(r"platform :ios, '[0-9.]+'", "platform :ios, '16.0'", content)
-          open(path,'w').write(content)
+          open(path, 'w').write(content)
           PYEOF
 
       - name: Pod install
@@ -197,25 +85,25 @@ workflows:
           python3 << 'PYEOF'
           import os, plistlib
           plist_path = 'ios/App/App/Info.plist'
-          with open(plist_path,'rb') as f:
+          with open(plist_path, 'rb') as f:
               plist = plistlib.load(f)
 
           rid = os.environ['REVERSED_CLIENT_ID']
-          url_types = [u for u in plist.get('CFBundleURLTypes',[]) if u.get('CFBundleURLName') != 'GoogleSignIn']
-          url_types.append({'CFBundleURLName':'GoogleSignIn','CFBundleURLSchemes':[rid]})
+          url_types = [u for u in plist.get('CFBundleURLTypes', []) if u.get('CFBundleURLName') != 'GoogleSignIn']
+          url_types.append({'CFBundleURLName': 'GoogleSignIn', 'CFBundleURLSchemes': [rid]})
           plist['CFBundleURLTypes'] = url_types
 
           plist['NSLocationWhenInUseUsageDescription'] = 'Felcin uses your location to track your running routes live on the map and save your PRs.'
           plist['NSLocationAlwaysAndWhenInUseUsageDescription'] = 'Felcin uses your location to track running routes and show your position on the map.'
-          plist.setdefault('NSCameraUsageDescription', 'Felcin needs camera access to take photos and videos for posts and stories.')
-          plist.setdefault('NSMicrophoneUsageDescription', 'Felcin needs microphone access to record audio for videos.')
-          plist.setdefault('NSPhotoLibraryUsageDescription', 'Felcin needs photo library access to share photos and videos.')
-          plist.setdefault('NSPhotoLibraryAddUsageDescription', 'Felcin needs permission to save photos and videos to your library.')
+          plist['NSCameraUsageDescription'] = 'Felcin needs camera access to take photos and videos for posts and stories.'
+          plist['NSMicrophoneUsageDescription'] = 'Felcin needs microphone access to record audio for videos.'
+          plist['NSPhotoLibraryUsageDescription'] = 'Felcin needs photo library access to share photos and videos.'
+          plist['NSPhotoLibraryAddUsageDescription'] = 'Felcin needs permission to save photos and videos to your library.'
           plist['ITSAppUsesNonExemptEncryption'] = False
 
-          with open(plist_path,'wb') as f:
+          with open(plist_path, 'wb') as f:
               plistlib.dump(plist, f, fmt=plistlib.FMT_XML)
-          print(f'Info.plist configured')
+          print('Info.plist configured')
           PYEOF
 
       - name: Set app icon and black launch screen
@@ -232,10 +120,10 @@ workflows:
               '<color key="backgroundColor" red="0.0" green="0.0" blue="0.0" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>',
               content
           )
-          open(path,'w').write(content)
+          open(path, 'w').write(content)
           PYEOF
 
-      - name: Patch ViewController.swift
+      - name: Patch ViewController.swift and AppDelegate.swift
         script: |
           cat > "ios/App/App/ViewController.swift" << 'SWIFTEOF'
           import UIKit
@@ -243,58 +131,18 @@ workflows:
           import WebKit
 
           class ViewController: CAPBridgeViewController {
-
               override func viewDidLoad() {
                   super.viewDidLoad()
-                  view.backgroundColor = UIColor.black
-                  webView?.isOpaque = false
-                  webView?.backgroundColor = UIColor.black
-                  webView?.scrollView.backgroundColor = UIColor.black
-
-                  // Block IndexedDB before ANY page JavaScript runs.
-                  // @firebase/app heartbeat service calls indexedDB.open() on startup.
-                  // On capacitor:// scheme + active network, this triggers a WKWebView bug
-                  // that deadlocks ALL JS async callbacks (Promises, setTimeout) forever.
-                  // WKUserScript at .atDocumentStart is injected by WebKit itself before
-                  // any <script> tags execute — guaranteed to run first, cannot be blocked.
-                  let blockIDB = WKUserScript(
-                      source: """
-                      (function() {
-                        try {
-                          var fakeReq = function() {
-                            var r = new EventTarget();
-                            r.result = null;
-                            r.readyState = 'done';
-                            r.onsuccess = null; r.onerror = null;
-                            r.onblocked = null; r.onupgradeneeded = null;
-                            r.error = new DOMException('IndexedDB blocked','SecurityError');
-                            setTimeout(function(){
-                              var e = new Event('error');
-                              if (typeof r.onerror === 'function') r.onerror(e);
-                              r.dispatchEvent(e);
-                            }, 0);
-                            return r;
-                          };
-                          if (window.IDBFactory) {
-                            IDBFactory.prototype.open = fakeReq;
-                            IDBFactory.prototype.deleteDatabase = fakeReq;
-                          }
-                          try { window.indexedDB.open = fakeReq; } catch(e) {}
-                        } catch(e) {}
-                      })();
-                      """,
-                      injectionTime: .atDocumentStart,
-                      forMainFrameOnly: true
-                  )
-                  webView?.configuration.userContentController.addUserScript(blockIDB)
+                  self.view.backgroundColor = UIColor.black
+                  self.webView?.isOpaque = false
+                  self.webView?.backgroundColor = UIColor.black
+                  self.webView?.scrollView.backgroundColor = UIColor.black
               }
-
               override func capacitorDidLoad() {
-                  webView?.isOpaque = false
-                  webView?.backgroundColor = UIColor.black
-                  webView?.scrollView.backgroundColor = UIColor.black
+                  self.webView?.isOpaque = false
+                  self.webView?.backgroundColor = UIColor.black
+                  self.webView?.scrollView.backgroundColor = UIColor.black
               }
-
               @available(iOS 15.0, *)
               override func webView(_ webView: WKWebView, requestMediaCapturePermissionFor origin: WKSecurityOrigin, initiatedByFrame frame: WKFrameInfo, type: WKMediaCaptureType, decisionHandler: @escaping (WKPermissionDecision) -> Void) {
                   decisionHandler(.grant)
@@ -302,8 +150,6 @@ workflows:
           }
           SWIFTEOF
 
-      - name: Patch AppDelegate.swift
-        script: |
           cat > "ios/App/App/AppDelegate.swift" << 'SWIFTEOF'
           import UIKit
           import Capacitor
@@ -330,13 +176,9 @@ workflows:
 
       - name: iPhone only
         script: |
-          perl -i -pe 's/TARGETED_DEVICE_FAMILY = "1,2";/TARGETED_DEVICE_FAMILY = 1;/g' ios/App/App.xcodeproj/project.pbxproj
-          perl -i -pe 's/TARGETED_DEVICE_FAMILY = 1,2;/TARGETED_DEVICE_FAMILY = 1;/g' ios/App/App.xcodeproj/project.pbxproj
-
-      - name: Set build number
-        script: |
-          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $BUILD_NUMBER" ios/App/App/Info.plist
-          echo "Build: $BUILD_NUMBER"
+          PBXPROJ="ios/App/App.xcodeproj/project.pbxproj"
+          perl -i -pe 's/TARGETED_DEVICE_FAMILY = "1,2";/TARGETED_DEVICE_FAMILY = 1;/g' "$PBXPROJ"
+          perl -i -pe 's/TARGETED_DEVICE_FAMILY = 1,2;/TARGETED_DEVICE_FAMILY = 1;/g' "$PBXPROJ"
 
       - name: Enable Google Sign-In subspec
         script: |
@@ -346,7 +188,7 @@ workflows:
       - name: Add Sign in with Apple entitlement
         script: |
           python3 << 'PYEOF'
-          open("ios/App/App/App.entitlements","w").write("""<?xml version="1.0" encoding="UTF-8"?>
+          open("ios/App/App/App.entitlements", "w").write("""<?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
           <plist version="1.0"><dict>
               <key>com.apple.developer.applesignin</key>
@@ -392,7 +234,6 @@ workflows:
           security cms -D -i /tmp/profile.mobileprovision -o /tmp/decoded.plist 2>/dev/null
           UUID=$(/usr/libexec/PlistBuddy -c 'Print :UUID' /tmp/decoded.plist)
           cp /tmp/profile.mobileprovision "$PROFILES/$UUID.mobileprovision"
-          echo "Profile: $UUID"
 
           PBXPROJ="ios/App/App.xcodeproj/project.pbxproj"
           perl -i -pe "s/CODE_SIGN_STYLE = Automatic;/CODE_SIGN_STYLE = Manual;\n\t\t\t\tPROVISIONING_PROFILE_SPECIFIER = \"$UUID\";/g" "$PBXPROJ"
@@ -412,6 +253,10 @@ workflows:
           </dict></plist>
           PLIST
 
+      - name: Set build number
+        script: |
+          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $BUILD_NUMBER" ios/App/App/Info.plist
+
       - name: Build IPA
         script: |
           set -eo pipefail
@@ -426,7 +271,7 @@ workflows:
             DEVELOPMENT_TEAM=UWSVWR4VTX \
             CODE_SIGN_STYLE=Manual \
             CODE_SIGN_IDENTITY="Apple Distribution" \
-            MARKETING_VERSION=1.4 \
+            MARKETING_VERSION=1.5 \
             CURRENT_PROJECT_VERSION=$BUILD_NUMBER
 
           xcodebuild -exportArchive \
@@ -434,7 +279,7 @@ workflows:
             -exportPath "$IPA_DIR" \
             -exportOptionsPlist /tmp/export_options.plist
 
-          echo "IPA: $(find $IPA_DIR -name '*.ipa' | head -1 | xargs ls -lh)"
+          echo "IPA: $(find $IPA_DIR -name '*.ipa' | head -1)"
 
       - name: Upload to TestFlight
         script: |
@@ -446,7 +291,8 @@ workflows:
             --apple-id 6763660775 \
             --apiKey "$APP_STORE_CONNECT_KEY_IDENTIFIER" \
             --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID" \
-            --output-format json
+            --output-format json \
+          || echo "⚠️ TestFlight upload failed (rate limit?). IPA saved as artifact."
 
     triggering:
       events:
@@ -459,10 +305,11 @@ workflows:
       - build/ios/ipa/*.ipa
 
 
+  # ── Android ──────────────────────────────────────────────────────────────────
   android-google-play:
     name: Felcin Android - Google Play
     max_build_duration: 120
-    instance_type: mac_mini_m1
+    instance_type: mac_mini_m2
     environment:
       groups:
         - android
@@ -473,109 +320,18 @@ workflows:
 
     scripts:
 
-      - name: Write Google Play credentials
-        script: |
-          set -e
-          RAW=""
-          for VAR_NAME in GOOGLE_PLAY_SERVICE_ACCOUNT_JSON GOOGLE_PLAY_SERVICE_ACCOUNT_CREDENTIALS; do
-            VAR_VALUE="${!VAR_NAME}"
-            [ -z "$VAR_VALUE" ] && continue
-            if [ "${VAR_VALUE:0:1}" = "{" ]; then RAW="$VAR_VALUE"
-            else
-              DECODED=$(echo "$VAR_VALUE" | base64 --decode 2>/dev/null) || true
-              [ "${DECODED:0:1}" = "{" ] && RAW="$DECODED"
-            fi
-            [ -n "$RAW" ] && break
-          done
-          [ -z "$RAW" ] && { echo "FATAL: No valid Google Play credentials"; exit 1; }
-          echo "$RAW" > /tmp/gp-credentials.json
-
-      - name: Build static web bundle
-        script: |
-          set -e
-          git clone https://github.com/jjfitnessline23-dev/felcin-next.git /tmp/felcin-next
-          cd /tmp/felcin-next
-          npm install --legacy-peer-deps
-
-          python3 << 'PYEOF'
-          import os, re
-          for root, dirs, files in os.walk('app/api'):
-              for f in files:
-                  if f == 'route.ts':
-                      p = os.path.join(root, f)
-                      c = open(p).read()
-                      nc = c.replace("'force-dynamic'","'force-static'").replace('"force-dynamic"','"force-static"')
-                      if nc != c: open(p,'w').write(nc)
-
-          dynamic_routes = [
-              ('app/(protected)/challenges/[id]/page.tsx','id'),
-              ('app/(protected)/ghost/[id]/page.tsx','id'),
-              ('app/(protected)/live/[id]/page.tsx','id'),
-              ('app/(protected)/podcasts/[id]/page.tsx','id'),
-              ('app/(protected)/podcasts/live/[id]/page.tsx','id'),
-              ('app/(protected)/subscribe/[uid]/page.tsx','uid'),
-              ('app/(protected)/tag/[name]/page.tsx','name'),
-              ('app/(protected)/trainers/[uid]/page.tsx','uid'),
-              ('app/(protected)/training-sessions/[sessionId]/page.tsx','sessionId'),
-              ('app/(public)/run/live/[shareId]/page.tsx','shareId'),
-          ]
-          for path, key in dynamic_routes:
-              if os.path.isfile(path):
-                  open(path,'w').write(
-                      'import { Suspense } from "react";\nimport PageClient from "./PageClient";\n\n'
-                      'export function generateStaticParams() { return [{ '+key+': "_" }]; }\n'
-                      'export const dynamicParams = false;\n\n'
-                      'export default function Page() { return <Suspense fallback={null}><PageClient /></Suspense>; }\n'
-                  )
-
-          suspense_pages = [
-              'app/(protected)/advertise/page.tsx','app/(protected)/badges/page.tsx',
-              'app/(protected)/comments/page.tsx','app/(protected)/creator/page.tsx',
-              'app/(protected)/earnings/page.tsx','app/(protected)/explore/page.tsx',
-              'app/(protected)/page.tsx','app/(protected)/private-chats/page.tsx',
-              'app/(protected)/training-sessions/page.tsx',
-          ]
-          for page in suspense_pages:
-              if os.path.isfile(page):
-                  cp = os.path.join(os.path.dirname(page),'page.content.tsx')
-                  os.rename(page,cp)
-                  open(page,'w').write(
-                      'import { Suspense } from "react";\nimport PageContent from "./page.content";\n'
-                      'export default function Page() { return <Suspense fallback={null}><PageContent /></Suspense>; }\n'
-                  )
-
-          up = 'app/(protected)/user-profile/page.tsx'
-          if os.path.isfile(up):
-              content = open(up).read()
-              content = re.sub(r'export async function generateMetadata\b.*?\n\}','',content,flags=re.DOTALL)
-              content = re.sub(r'async function fetchUserProfile\b.*?\n\}','',content,flags=re.DOTALL)
-              content = content.replace('import type { Metadata } from "next";\n','')
-              if 'Suspense' not in content:
-                  content = content.replace('import PageClient from "./PageClient";',
-                      'import { Suspense } from "react";\nimport PageClient from "./PageClient";')
-              content = content.replace('return <PageClient />;','return <Suspense fallback={null}><PageClient /></Suspense>;')
-              open(up,'w').write(content)
-          PYEOF
-
-          NEXT_PUBLIC_CAPACITOR_BUILD=true \
-          NEXT_PUBLIC_API_URL="https://www.felcin.com" \
-          NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY="${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY:-pk_test_51TeacHFq0Nd4lLkFwHZ7nutFk0jI0H4bmtffnaI92is7ym5KEVuXmppnVMgQhC9qP39zBhgzOukNYUE4yvtiwa0I00CycqtIbo}" \
-          npm run build
-
-          [ -f "out/index.html" ] || { echo "ERROR: static build failed"; exit 1; }
-
-          find out/_next/static/chunks -name '*.js' | xargs perl -i -pe 's|fetch\("/api/|fetch("https://www.felcin.com/api/|g'
-          find out/_next/static/chunks -name '*.js' | xargs perl -i -pe "s|fetch\\('/api/|fetch('https://www.felcin.com/api/|g"
-          find out/_next/static/chunks -name '*.js' | xargs perl -i -pe 's|\`/api/|\`https://www.felcin.com/api/|g'
-
-      - name: Patch capacitor.config.json
+      - name: Patch capacitor.config.json (Live URL mode)
         script: |
           python3 << 'PYEOF'
           import json
-          with open('capacitor.config.json') as f: c = json.load(f)
-          c['webDir'] = '/tmp/felcin-next/out'
-          c.pop('server', None)
-          with open('capacitor.config.json','w') as f: json.dump(c, f, indent=2)
+          with open('capacitor.config.json') as f:
+              config = json.load(f)
+          config['appId'] = 'com.felcin.app'
+          config['server'] = {'url': 'https://www.felcin.com', 'cleartext': False}
+          config.pop('webDir', None)
+          with open('capacitor.config.json', 'w') as f:
+              json.dump(config, f, indent=2)
+          print('Mode: live URL -> https://www.felcin.com')
           PYEOF
 
       - name: Install dependencies
@@ -583,52 +339,44 @@ workflows:
           npm install --legacy-peer-deps
           npm install -g @capacitor/cli
 
-      - name: Patch Google Sign-Out cache
+      - name: Add Android platform (fresh)
         script: |
-          perl -i -pe 's/public void signOut\(\) \{/public void signOut() {\n        if (mGoogleSignInClient != null) { mGoogleSignInClient.signOut(); }/' \
-            "node_modules/@capacitor-firebase/authentication/android/src/main/java/io/capawesome/capacitorjs/plugins/firebase/authentication/handlers/GoogleAuthProviderHandler.java"
-
-      - name: Add Android platform
-        script: |
-          if [ ! -f "android/gradlew" ]; then
-            rm -rf android
-            npx cap add android
-          fi
+          rm -rf android
+          npx cap add android
 
       - name: Capacitor sync
         script: npx cap sync android
 
-      - name: Set version and package name
+      - name: Set version code
         script: |
-          BUILD_NO=$(( ${BUILD_NUMBER:-1} + 200 ))
-          sed -i '' "s/versionCode [0-9]*/versionCode $BUILD_NO/" android/app/build.gradle
-          sed -i '' "s/versionName \"[^\"]*\"/versionName \"2.0\"/" android/app/build.gradle
-          sed -i '' "s/applicationId \"com\.felcin\.app\"/applicationId \"app.felcin.social\"/" android/app/build.gradle
-
-      - name: Enable R8 optimization
-        script: |
-          perl -i -pe 's/minifyEnabled false/minifyEnabled true/' android/app/build.gradle
-          perl -i -pe 's/shrinkResources false/shrinkResources true/' android/app/build.gradle
-          grep -q 'shrinkResources' android/app/build.gradle || \
-            perl -i -pe 's/minifyEnabled true/minifyEnabled true\n            shrinkResources true/' android/app/build.gradle
-          perl -i -pe 's/proguard-android\.txt/proguard-android-optimize.txt/' android/app/build.gradle
+          python3 << 'PYEOF'
+          import re
+          path = 'android/app/build.gradle'
+          content = open(path).read()
+          import os
+          build_no = int(os.environ.get('BUILD_NUMBER', '1')) + 200
+          content = re.sub(r'versionCode \d+', f'versionCode {build_no}', content)
+          content = re.sub(r'versionName "[^"]*"', 'versionName "1.5"', content)
+          open(path, 'w').write(content)
+          print(f'versionCode set to {build_no}')
+          PYEOF
 
       - name: Set app icons
         script: |
           if [ -d "android-icons" ]; then
-            cp android-icons/mipmap-mdpi/*.png    android/app/src/main/res/mipmap-mdpi/
-            cp android-icons/mipmap-hdpi/*.png    android/app/src/main/res/mipmap-hdpi/
-            cp android-icons/mipmap-xhdpi/*.png   android/app/src/main/res/mipmap-xhdpi/
-            cp android-icons/mipmap-xxhdpi/*.png  android/app/src/main/res/mipmap-xxhdpi/
-            cp android-icons/mipmap-xxxhdpi/*.png android/app/src/main/res/mipmap-xxxhdpi/
+            cp android-icons/mipmap-mdpi/*.png    android/app/src/main/res/mipmap-mdpi/     2>/dev/null || true
+            cp android-icons/mipmap-hdpi/*.png    android/app/src/main/res/mipmap-hdpi/     2>/dev/null || true
+            cp android-icons/mipmap-xhdpi/*.png   android/app/src/main/res/mipmap-xhdpi/    2>/dev/null || true
+            cp android-icons/mipmap-xxhdpi/*.png  android/app/src/main/res/mipmap-xxhdpi/   2>/dev/null || true
+            cp android-icons/mipmap-xxxhdpi/*.png android/app/src/main/res/mipmap-xxxhdpi/  2>/dev/null || true
           fi
 
-      - name: Build AAB + APK
+      - name: Build signed AAB
         script: |
+          echo "$KEYSTORE_BASE64" | base64 --decode > /tmp/felcin-release.keystore
           cd android
           chmod +x gradlew
-          echo "$KEYSTORE_BASE64" | base64 --decode > /tmp/felcin-release.keystore
-          ./gradlew bundleRelease assembleRelease \
+          ./gradlew bundleRelease \
             -Pandroid.injected.signing.store.file=/tmp/felcin-release.keystore \
             -Pandroid.injected.signing.store.password="$KEYSTORE_PASSWORD" \
             -Pandroid.injected.signing.key.alias="$KEY_ALIAS" \
@@ -638,35 +386,48 @@ workflows:
         script: |
           pip3 install --quiet google-auth google-api-python-client
           python3 - << 'PYEOF'
+          import os
           from google.oauth2 import service_account
           from googleapiclient.discovery import build
           from googleapiclient.http import MediaFileUpload
 
-          PACKAGE = 'app.felcin.social'
-          AAB     = 'android/app/build/outputs/bundle/release/app-release.aab'
-          creds   = service_account.Credentials.from_service_account_file(
-              '/tmp/gp-credentials.json',
-              scopes=['https://www.googleapis.com/auth/androidpublisher']
-          )
-          service = build('androidpublisher','v3',credentials=creds)
-          edit    = service.edits().insert(packageName=PACKAGE,body={}).execute()
-          eid     = edit['id']
-          bundle  = service.edits().bundles().upload(
+          PACKAGE = 'com.felcin.app'
+          AAB = 'android/app/build/outputs/bundle/release/app-release.aab'
+
+          creds_json = os.environ.get('GOOGLE_PLAY_SERVICE_ACCOUNT_JSON', '')
+          if not creds_json:
+              print('No Google Play credentials — AAB saved as artifact')
+              exit(0)
+
+          import tempfile, json
+          with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+              f.write(creds_json)
+              creds_file = f.name
+
+          creds = service_account.Credentials.from_service_account_file(
+              creds_file, scopes=['https://www.googleapis.com/auth/androidpublisher'])
+          service = build('androidpublisher', 'v3', credentials=creds)
+          edit = service.edits().insert(packageName=PACKAGE, body={}).execute()
+          eid = edit['id']
+          bundle = service.edits().bundles().upload(
               packageName=PACKAGE, editId=eid,
-              media_body=MediaFileUpload(AAB,mimetype='application/octet-stream',resumable=True)
+              media_body=MediaFileUpload(AAB, mimetype='application/octet-stream', resumable=True)
           ).execute()
           vc = bundle['versionCode']
           service.edits().tracks().update(
               packageName=PACKAGE, editId=eid, track='internal',
-              body={'releases':[{'versionCodes':[vc],'status':'completed'}]}
+              body={'releases': [{'versionCodes': [vc], 'status': 'completed'}]}
           ).execute()
-          service.edits().commit(packageName=PACKAGE,editId=eid).execute()
+          service.edits().commit(packageName=PACKAGE, editId=eid).execute()
           print(f'Published versionCode {vc} to internal track')
           PYEOF
 
     triggering:
-      events: []
+      events:
+        - push
+      branch_patterns:
+        - pattern: master
+          include: true
 
     artifacts:
       - android/app/build/outputs/bundle/release/app-release.aab
-      - android/app/build/outputs/apk/release/app-release.apk
