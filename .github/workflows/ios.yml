@@ -1,12 +1,10 @@
 name: iOS App Store
 
 on:
-  # Disabled — using Codemagic for iOS builds
+  push:
+    branches:
+      - master
   workflow_dispatch:
-    inputs:
-      reason:
-        description: 'Reason for manual trigger (emergency only)'
-        required: false
 
 jobs:
   build:
