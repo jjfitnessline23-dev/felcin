@@ -155,6 +155,24 @@ jobs:
 
           open("out/fonts/ms.css", "w").write(css)
           print(f"Material Symbols self-hosted: {len(woff2_urls)} WOFF2 files -> out/fonts/")
+
+          # Strip ALL Google Fonts links from every HTML file.
+          # Next.js injects additional <link rel="preload/preconnect/stylesheet"> tags
+          # for Google Fonts beyond what layout.tsx renders — these extra links survive
+          # even after the layout.tsx conditional fix. Any render-blocking external
+          # stylesheet from fonts.googleapis.com blocks the first paint on WKWebView
+          # with internet (fails fast in airplane mode → appears to work).
+          html_files = glob.glob("out/**/*.html", recursive=True) + glob.glob("out/*.html")
+          patched = 0
+          for path in html_files:
+              c = open(path).read()
+              orig = c
+              c = re.sub(r'<link[^>]*fonts\.googleapis\.com[^>]*/>', '', c)
+              c = re.sub(r'<link[^>]*fonts\.gstatic\.com[^>]*/>', '', c)
+              if c != orig:
+                  open(path, 'w').write(c)
+                  patched += 1
+          print(f"Google Fonts links removed from {patched} HTML files")
           PYEOF
 
           # Dump index.html <head> to build log so we can see every external resource
