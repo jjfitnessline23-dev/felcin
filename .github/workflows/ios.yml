@@ -181,7 +181,7 @@ jobs:
       - name: Add iOS platform
         run: |
           rm -rf ios
-          npx cap add ios
+          npx cap add ios || true
 
       - name: Patch Podfile deployment target to 16.0
         run: |
