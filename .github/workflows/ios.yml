@@ -234,6 +234,11 @@ jobs:
           config['webDir'] = 'www'
           if 'ios' not in config:
               config['ios'] = {}
+          # Remove limitsNavigationsToAppBoundDomains — with a custom scheme
+          # (Felcin://) localhost is not registered as an app-bound domain,
+          # which can silently break the Capacitor bridge on WKWebView.
+          # Android has no equivalent so this is iOS-specific.
+          config['ios'].pop('limitsNavigationsToAppBoundDomains', None)
           with open('capacitor.config.json', 'w') as f:
               json.dump(config, f, indent=2)
           print("Mode: full bundled")
