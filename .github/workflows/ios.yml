@@ -28,196 +28,8 @@ jobs:
         with:
           node-version: "22"
 
-      - name: Build felcin-next static bundle
-        run: |
-          set -e
-          git clone https://github.com/jjfitnessline23-dev/felcin-next.git /tmp/felcin-next
-          cd /tmp/felcin-next
-          npm install --legacy-peer-deps
-
-          # ── Patch 1: idb noop ─────────────────────────────────────────────────
-          # @firebase/app heartbeat calls openDB() from the idb library.
-          cat > node_modules/idb/build/index.js << 'IDBEOF'
-          export function openDB() { return Promise.reject(new Error('idb disabled')); }
-          export function deleteDB() { return Promise.resolve(); }
-          IDBEOF
-
-          # ── Patch 2: @firebase/util — block direct window.indexedDB.open() ───
-          # validateIndexedDBOpenable() calls self.indexedDB.open() directly,
-          # bypassing the idb noop. Making isIndexedDBAvailable() return false
-          # prevents validateIndexedDBOpenable() from ever being called.
-          python3 << 'PYEOF'
-          for path in [
-              "node_modules/@firebase/util/dist/index.esm.js",
-              "node_modules/@firebase/util/dist/index.cjs.js",
-          ]:
-              try:
-                  c = open(path).read()
-                  p = c.replace("typeof indexedDB === 'object'", "false")
-                  p = p.replace('typeof indexedDB === "object"', "false")
-                  if p != c:
-                      open(path, "w").write(p)
-                      print(f"Patched: {path}")
-                  else:
-                      print(f"WARNING: pattern not found in {path}")
-              except Exception as e:
-                  print(f"Error patching {path}: {e}")
-          PYEOF
-
-          # ── Patch 3: Static export patches ────────────────────────────────────
-          python3 << 'PYEOF'
-          import os, re
-
-          for root, dirs, files in os.walk('app/api'):
-              for f in files:
-                  if f == 'route.ts':
-                      p = os.path.join(root, f)
-                      c = open(p).read()
-                      nc = c.replace("'force-dynamic'", "'force-static'").replace('"force-dynamic"', '"force-static"')
-                      if nc != c:
-                          open(p, 'w').write(nc)
-
-          dynamic_routes = [
-              ('app/(protected)/challenges/[id]/page.tsx', 'id'),
-              ('app/(protected)/ghost/[id]/page.tsx', 'id'),
-              ('app/(protected)/live/[id]/page.tsx', 'id'),
-              ('app/(protected)/podcasts/[id]/page.tsx', 'id'),
-              ('app/(protected)/podcasts/live/[id]/page.tsx', 'id'),
-              ('app/(protected)/subscribe/[uid]/page.tsx', 'uid'),
-              ('app/(protected)/tag/[name]/page.tsx', 'name'),
-              ('app/(protected)/trainers/[uid]/page.tsx', 'uid'),
-              ('app/(protected)/training-sessions/[sessionId]/page.tsx', 'sessionId'),
-              ('app/(public)/run/live/[shareId]/page.tsx', 'shareId'),
-          ]
-          for path, key in dynamic_routes:
-              if os.path.isfile(path):
-                  open(path, 'w').write(
-                      'import { Suspense } from "react";\nimport PageClient from "./PageClient";\n\n'
-                      'export function generateStaticParams() { return [{ ' + key + ': "_" }]; }\n'
-                      'export const dynamicParams = false;\n\n'
-                      'export default function Page() { return <Suspense fallback={null}><PageClient /></Suspense>; }\n'
-                  )
-
-          suspense_pages = [
-              'app/(protected)/advertise/page.tsx',
-              'app/(protected)/badges/page.tsx',
-              'app/(protected)/comments/page.tsx',
-              'app/(protected)/creator/page.tsx',
-              'app/(protected)/earnings/page.tsx',
-              'app/(protected)/explore/page.tsx',
-              'app/(protected)/page.tsx',
-              'app/(protected)/private-chats/page.tsx',
-              'app/(protected)/training-sessions/page.tsx',
-          ]
-          for page in suspense_pages:
-              if os.path.isfile(page):
-                  cp = os.path.join(os.path.dirname(page), 'page.content.tsx')
-                  os.rename(page, cp)
-                  open(page, 'w').write(
-                      'import { Suspense } from "react";\nimport PageContent from "./page.content";\n'
-                      'export default function Page() { return <Suspense fallback={null}><PageContent /></Suspense>; }\n'
-                  )
-
-          up = 'app/(protected)/user-profile/page.tsx'
-          if os.path.isfile(up):
-              content = open(up).read()
-              content = re.sub(r'export async function generateMetadata\b.*?\n\}', '', content, flags=re.DOTALL)
-              content = re.sub(r'async function fetchUserProfile\b.*?\n\}', '', content, flags=re.DOTALL)
-              content = content.replace('import type { Metadata } from "next";\n', '')
-              if 'Suspense' not in content:
-                  content = content.replace('import PageClient from "./PageClient";',
-                      'import { Suspense } from "react";\nimport PageClient from "./PageClient";')
-              content = content.replace('return <PageClient />;', 'return <Suspense fallback={null}><PageClient /></Suspense>;')
-              open(up, 'w').write(content)
-          PYEOF
-
-          NEXT_PUBLIC_CAPACITOR_BUILD=true \
-          NEXT_PUBLIC_API_URL="https://www.felcin.com" \
-          NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY="${{ secrets.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY }}" \
-          NEXT_PUBLIC_MAPTILER_KEY="9C6j1Ypd0rgipW4RnpiV" \
-          npm run build
-
-          [ -f "out/index.html" ] || { echo "ERROR: static build failed"; exit 1; }
-          echo "Pages built: $(find out -name '*.html' | wc -l)"
-
-          # ── Patch 4: Absolute API URLs in JS chunks ────────────────────────────
-          find out/_next/static/chunks -name '*.js' | xargs perl -i -pe 's|fetch\("/api/|fetch("https://www.felcin.com/api/|g'
-          find out/_next/static/chunks -name '*.js' | xargs perl -i -pe "s|fetch\\('/api/|fetch('https://www.felcin.com/api/|g"
-          find out/_next/static/chunks -name '*.js' | xargs perl -i -pe 's|\`/api/|\`https://www.felcin.com/api/|g'
-
-          # ── Patch 5: Self-host Material Symbols font ───────────────────────────
-          # Any render-blocking external stylesheet from fonts.googleapis.com
-          # stalls the first paint on WKWebView when internet is active.
-          python3 << 'PYEOF'
-          import urllib.request, re, glob, os, sys
-
-          url = ("https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined"
-                 ":opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=block")
-          req = urllib.request.Request(url, headers={
-              "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15"
-          })
-          try:
-              css = urllib.request.urlopen(req, timeout=30).read().decode()
-              os.makedirs("out/fonts", exist_ok=True)
-              for i, woff2url in enumerate(re.findall(r'https://fonts\.gstatic\.com/[^\)]+\.woff2', css)):
-                  fname = f"ms-{i}.woff2"
-                  urllib.request.urlretrieve(woff2url, f"out/fonts/{fname}")
-                  css = css.replace(woff2url, f"/fonts/{fname}")
-              open("out/fonts/ms.css", "w").write(css)
-              print(f"Font self-hosted")
-          except Exception as e:
-              print(f"WARNING: Font download failed: {e}", file=sys.stderr)
-          PYEOF
-
-          # Remove ALL Google Fonts links regardless of source
-          python3 << 'PYEOF'
-          import re, glob
-          files = glob.glob("out/**/*.html", recursive=True) + glob.glob("out/*.html")
-          n = 0
-          for path in files:
-              c = open(path).read()
-              orig = c
-              c = re.sub(r'<link[^>]*fonts\.googleapis\.com[^>]*/>', '', c)
-              c = re.sub(r'<link[^>]*fonts\.gstatic\.com[^>]*/>', '', c)
-              if c != orig:
-                  open(path, 'w').write(c)
-                  n += 1
-          print(f"Google Fonts removed from {n} HTML files")
-          PYEOF
-
-          # ── Patch 6: Block IndexedDB + Firebase HTTP calls ────────────────────
-          # @firebase/installations stalls iOS WKWebView's render pipeline via:
-          #   (a) window.indexedDB.open() — IDB deadlock with network process
-          #   (b) fetch() to firebaseinstallations/firebaselogging — hangs until
-          #       network state changes (airplane mode toggle frees the lock)
-          # Both are blocked here at the browser API level before any module loads.
-          python3 << 'PYEOF'
-          import glob
-          SCRIPT = (
-              '<script>try{'
-              # Block IndexedDB — @firebase/installations uses it directly
-              'Object.defineProperty(window,"indexedDB",{get:function(){return undefined;},configurable:true});'
-              # Block Firebase internal HTTP endpoints — fail fast instead of hanging
-              'var _f=window.fetch;'
-              'window.fetch=function(u,o){'
-              'var s=typeof u==="string"?u:(u&&u.url)||"";'
-              'if(s.indexOf("firebaseinstallations.googleapis.com")!==-1'
-              '||s.indexOf("firebaselogging.googleapis.com")!==-1'
-              '||s.indexOf("firebase.googleapis.com/v1alpha")!==-1'
-              '||s.indexOf("firebaseremoteconfig.googleapis.com")!==-1){'
-              'return Promise.reject(new Error("blocked"));}'
-              'return _f.apply(this,arguments);};'
-              '}catch(e){}</script>'
-          )
-          files = glob.glob("out/**/*.html", recursive=True) + glob.glob("out/*.html")
-          n = 0
-          for path in files:
-              c = open(path).read()
-              if '<head>' in c and 'firebaseinstallations' not in c:
-                  open(path, 'w').write(c.replace('<head>', '<head>' + SCRIPT, 1))
-                  n += 1
-          print(f"IndexedDB + fetch block injected into {n} HTML files")
-          PYEOF
+      - name: Use committed pages/ bundle (diagnostic test)
+        run: echo "Using pages/ directory committed in repo — no felcin-next build"
 
           # Copy static bundle into felcin repo so cap sync picks it up
           cp -r out "$GITHUB_WORKSPACE/www"
@@ -231,17 +43,13 @@ jobs:
               config = json.load(f)
           config['appId'] = 'com.felcin.app'
           config.pop('server', None)
-          config['webDir'] = 'www'
+          config['webDir'] = 'pages'
           if 'ios' not in config:
               config['ios'] = {}
-          # Remove limitsNavigationsToAppBoundDomains — with a custom scheme
-          # (Felcin://) localhost is not registered as an app-bound domain,
-          # which can silently break the Capacitor bridge on WKWebView.
-          # Android has no equivalent so this is iOS-specific.
           config['ios'].pop('limitsNavigationsToAppBoundDomains', None)
           with open('capacitor.config.json', 'w') as f:
               json.dump(config, f, indent=2)
-          print("Mode: full bundled")
+          print("Mode: old pages/ bundle (diagnostic)")
           PYEOF
 
       - name: Install npm dependencies
