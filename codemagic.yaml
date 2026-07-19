@@ -116,6 +116,7 @@ workflows:
           PYEOF
 
           NEXT_PUBLIC_CAPACITOR_BUILD=true \
+          NEXT_PUBLIC_PLATFORM=ios \
           NEXT_PUBLIC_API_URL="https://www.felcin.com" \
           NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY="$NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY" \
           NEXT_PUBLIC_MAPTILER_KEY="9C6j1Ypd0rgipW4RnpiV" \
@@ -524,6 +525,7 @@ workflows:
           PYEOF
 
           NEXT_PUBLIC_CAPACITOR_BUILD=true \
+          NEXT_PUBLIC_PLATFORM=android \
           NEXT_PUBLIC_API_URL="https://www.felcin.com" \
           NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY="$NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY" \
           NEXT_PUBLIC_MAPTILER_KEY="9C6j1Ypd0rgipW4RnpiV" \
