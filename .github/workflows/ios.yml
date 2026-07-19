@@ -170,7 +170,12 @@ jobs:
               var window: UIWindow?
 
               func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
-                  FirebaseApp.configure()
+                  // Delay Firebase init so WKWebView starts loading first.
+                  // FirebaseApp.configure() triggers a native URLSession token refresh
+                  // that can hang on semi-connected networks and block the app startup.
+                  DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                      FirebaseApp.configure()
+                  }
                   return true
               }
 
