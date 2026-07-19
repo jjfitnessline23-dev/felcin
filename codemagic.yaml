@@ -657,10 +657,10 @@ workflows:
           vc = bundle['versionCode']
           service.edits().tracks().update(
               packageName=PACKAGE, editId=eid, track='production',
-              body={'releases': [{'versionCodes': [vc], 'status': 'inReview'}]}
+              body={'releases': [{'versionCodes': [vc], 'status': 'completed'}]}
           ).execute()
           service.edits().commit(packageName=PACKAGE, editId=eid).execute()
-          print(f'Published versionCode {vc} to production — sent straight to review')
+          print(f'Published versionCode {vc} to production — queued for review')
           PYEOF
 
     artifacts:
