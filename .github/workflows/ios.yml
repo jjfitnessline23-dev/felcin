@@ -31,10 +31,6 @@ jobs:
       - name: Use committed pages/ bundle (diagnostic test)
         run: echo "Using pages/ directory committed in repo — no felcin-next build"
 
-          # Copy static bundle into felcin repo so cap sync picks it up
-          cp -r out "$GITHUB_WORKSPACE/www"
-          echo "Bundle: $(find "$GITHUB_WORKSPACE/www" -name '*.html' | wc -l) pages"
-
       - name: Patch capacitor.config.json
         run: |
           python3 << 'PYEOF'
