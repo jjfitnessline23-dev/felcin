@@ -228,24 +228,29 @@ workflows:
                   self.webView?.isOpaque = false
                   self.webView?.backgroundColor = UIColor.black
                   self.webView?.scrollView.backgroundColor = UIColor.black
-                  checkOfflineAndRedirect()
+
+                  // Synchronous check immediately after bridge init so we redirect
+                  // before WKWebView has a chance to show a network error page.
+                  if !isConnectedSync() {
+                      webView?.stopLoading()
+                      webView?.load(URLRequest(url: URL(string: "felcin://localhost/")!))
+                  }
               }
 
-              // Online → live URL (server.url). Offline → embedded bundle fallback.
-              private func checkOfflineAndRedirect() {
+              // Blocks main thread for up to 300ms (typically < 5ms on device).
+              // Must be synchronous so the redirect fires before any error UI appears.
+              private func isConnectedSync() -> Bool {
                   let monitor = NWPathMonitor()
-                  let queue = DispatchQueue(label: "com.felcin.netcheck")
-                  monitor.pathUpdateHandler = { [weak self] path in
+                  var connected = true
+                  let semaphore = DispatchSemaphore(value: 0)
+                  monitor.pathUpdateHandler = { path in
+                      connected = path.status == .satisfied
                       monitor.cancel()
-                      guard path.status != .satisfied else { return }
-                      DispatchQueue.main.async {
-                          self?.webView?.stopLoading()
-                          if let url = URL(string: "felcin://localhost") {
-                              self?.webView?.load(URLRequest(url: url))
-                          }
-                      }
+                      semaphore.signal()
                   }
-                  monitor.start(queue: queue)
+                  monitor.start(queue: DispatchQueue(label: "com.felcin.netcheck"))
+                  _ = semaphore.wait(timeout: .now() + 0.3)
+                  return connected
               }
 
               override func capacitorDidLoad() {
