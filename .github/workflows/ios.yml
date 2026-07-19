@@ -185,6 +185,25 @@ jobs:
           print(f"Google Fonts removed from {n} HTML files")
           PYEOF
 
+          # ── Patch 6: Block IndexedDB at browser API level ─────────────────────
+          # @firebase/installations calls window.indexedDB.open() directly —
+          # bypasses both the idb noop and isIndexedDBAvailable() patches.
+          # On iOS WKWebView with internet active, that call deadlocks the render
+          # pipeline. Override window.indexedDB before any module loads.
+          python3 << 'PYEOF'
+          import glob
+          SCRIPT = ('<script>try{Object.defineProperty(window,"indexedDB",'
+                    '{get:function(){return undefined;},configurable:true});}catch(e){}</script>')
+          files = glob.glob("out/**/*.html", recursive=True) + glob.glob("out/*.html")
+          n = 0
+          for path in files:
+              c = open(path).read()
+              if '<head>' in c and SCRIPT not in c:
+                  open(path, 'w').write(c.replace('<head>', '<head>' + SCRIPT, 1))
+                  n += 1
+          print(f"IndexedDB override injected into {n} HTML files")
+          PYEOF
+
           # Copy static bundle into felcin repo so cap sync picks it up
           cp -r out "$GITHUB_WORKSPACE/www"
           echo "Bundle: $(find "$GITHUB_WORKSPACE/www" -name '*.html' | wc -l) pages"
