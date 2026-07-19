@@ -38,7 +38,7 @@ jobs:
           # ── Patch 1: idb noop ─────────────────────────────────────────────────
           # @firebase/app heartbeat calls openDB() from the idb library.
           cat > node_modules/idb/build/index.js << 'IDBEOF'
-          export function openDB() { return new Promise(function() {}); }
+          export function openDB() { return Promise.reject(new Error('idb disabled')); }
           export function deleteDB() { return Promise.resolve(); }
           IDBEOF
 
