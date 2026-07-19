@@ -571,12 +571,12 @@ workflows:
             cp android-icons/mipmap-xxxhdpi/*.png android/app/src/main/res/mipmap-xxxhdpi/  2>/dev/null || true
           fi
 
-      - name: Build signed AAB
+      - name: Build signed AAB + APK
         script: |
           echo "$KEYSTORE_BASE64" | base64 --decode > /tmp/felcin-release.keystore
           cd android
           chmod +x gradlew
-          ./gradlew bundleRelease \
+          ./gradlew bundleRelease assembleRelease \
             -Pandroid.injected.signing.store.file=/tmp/felcin-release.keystore \
             -Pandroid.injected.signing.store.password="$KEYSTORE_PASSWORD" \
             -Pandroid.injected.signing.key.alias="$KEY_ALIAS" \
@@ -622,12 +622,6 @@ workflows:
           print(f'Published versionCode {vc} to internal track')
           PYEOF
 
-    triggering:
-      events:
-        - push
-      branch_patterns:
-        - pattern: master
-          include: true
-
     artifacts:
       - android/app/build/outputs/bundle/release/app-release.aab
+      - android/app/build/outputs/apk/release/app-release.apk
