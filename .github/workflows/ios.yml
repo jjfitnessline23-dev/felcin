@@ -185,23 +185,38 @@ jobs:
           print(f"Google Fonts removed from {n} HTML files")
           PYEOF
 
-          # ── Patch 6: Block IndexedDB at browser API level ─────────────────────
-          # @firebase/installations calls window.indexedDB.open() directly —
-          # bypasses both the idb noop and isIndexedDBAvailable() patches.
-          # On iOS WKWebView with internet active, that call deadlocks the render
-          # pipeline. Override window.indexedDB before any module loads.
+          # ── Patch 6: Block IndexedDB + Firebase HTTP calls ────────────────────
+          # @firebase/installations stalls iOS WKWebView's render pipeline via:
+          #   (a) window.indexedDB.open() — IDB deadlock with network process
+          #   (b) fetch() to firebaseinstallations/firebaselogging — hangs until
+          #       network state changes (airplane mode toggle frees the lock)
+          # Both are blocked here at the browser API level before any module loads.
           python3 << 'PYEOF'
           import glob
-          SCRIPT = ('<script>try{Object.defineProperty(window,"indexedDB",'
-                    '{get:function(){return undefined;},configurable:true});}catch(e){}</script>')
+          SCRIPT = (
+              '<script>try{'
+              # Block IndexedDB — @firebase/installations uses it directly
+              'Object.defineProperty(window,"indexedDB",{get:function(){return undefined;},configurable:true});'
+              # Block Firebase internal HTTP endpoints — fail fast instead of hanging
+              'var _f=window.fetch;'
+              'window.fetch=function(u,o){'
+              'var s=typeof u==="string"?u:(u&&u.url)||"";'
+              'if(s.indexOf("firebaseinstallations.googleapis.com")!==-1'
+              '||s.indexOf("firebaselogging.googleapis.com")!==-1'
+              '||s.indexOf("firebase.googleapis.com/v1alpha")!==-1'
+              '||s.indexOf("firebaseremoteconfig.googleapis.com")!==-1){'
+              'return Promise.reject(new Error("blocked"));}'
+              'return _f.apply(this,arguments);};'
+              '}catch(e){}</script>'
+          )
           files = glob.glob("out/**/*.html", recursive=True) + glob.glob("out/*.html")
           n = 0
           for path in files:
               c = open(path).read()
-              if '<head>' in c and SCRIPT not in c:
+              if '<head>' in c and 'firebaseinstallations' not in c:
                   open(path, 'w').write(c.replace('<head>', '<head>' + SCRIPT, 1))
                   n += 1
-          print(f"IndexedDB override injected into {n} HTML files")
+          print(f"IndexedDB + fetch block injected into {n} HTML files")
           PYEOF
 
           # Copy static bundle into felcin repo so cap sync picks it up
