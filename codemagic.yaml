@@ -405,13 +405,6 @@ workflows:
             --output-format json \
           || echo "⚠️ TestFlight upload failed (rate limit?). IPA saved as artifact."
 
-    triggering:
-      events:
-        - push
-      branch_patterns:
-        - pattern: master
-          include: true
-
     artifacts:
       - build/ios/ipa/*.ipa
 
