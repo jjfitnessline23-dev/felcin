@@ -5,10 +5,10 @@ def localPropsFile = rootProject.file("local.properties")
 if (localPropsFile.exists()) { localPropsFile.withInputStream { localProps.load(it) } }
 
 android {
-    namespace "com.felcin.app"
+    namespace "app.felcin.social"
     compileSdk rootProject.ext.compileSdkVersion
     defaultConfig {
-        applicationId "com.felcin.app"
+        applicationId "app.felcin.social"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 112
