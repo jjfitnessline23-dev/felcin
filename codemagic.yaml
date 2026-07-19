@@ -623,7 +623,7 @@ workflows:
             -Pandroid.injected.signing.key.alias="$KEY_ALIAS" \
             -Pandroid.injected.signing.key.password="$KEY_PASSWORD"
 
-      - name: Publish to Google Play internal track
+      - name: Publish to Google Play production (straight to review)
         script: |
           pip3 install --quiet google-auth google-api-python-client
           python3 - << 'PYEOF'
@@ -656,11 +656,11 @@ workflows:
           ).execute()
           vc = bundle['versionCode']
           service.edits().tracks().update(
-              packageName=PACKAGE, editId=eid, track='internal',
-              body={'releases': [{'versionCodes': [vc], 'status': 'completed'}]}
+              packageName=PACKAGE, editId=eid, track='production',
+              body={'releases': [{'versionCodes': [vc], 'status': 'inReview'}]}
           ).execute()
           service.edits().commit(packageName=PACKAGE, editId=eid).execute()
-          print(f'Published versionCode {vc} to internal track')
+          print(f'Published versionCode {vc} to production — sent straight to review')
           PYEOF
 
     artifacts:
