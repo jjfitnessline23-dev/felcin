@@ -1,5 +1,7 @@
 package com.felcin.app;
 
+import android.net.ConnectivityManager;
+import android.net.NetworkCapabilities;
 import android.os.Bundle;
 import android.os.Message;
 import android.view.View;
@@ -48,6 +50,24 @@ public class MainActivity extends BridgeActivity {
                     return true;
                 }
             });
+
+            // Offline: stop the live URL load and fall back to the embedded bundle
+            if (!isNetworkAvailable()) {
+                webView.stopLoading();
+                String localUrl = getBridge().getLocalUrl();
+                webView.post(() -> webView.loadUrl(localUrl));
+            }
         }
+    }
+
+    private boolean isNetworkAvailable() {
+        ConnectivityManager cm = (ConnectivityManager) getSystemService(CONNECTIVITY_SERVICE);
+        if (cm == null) return false;
+        NetworkCapabilities cap = cm.getNetworkCapabilities(cm.getActiveNetwork());
+        return cap != null && (
+            cap.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) ||
+            cap.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) ||
+            cap.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET)
+        );
     }
 }
