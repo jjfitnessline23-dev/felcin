@@ -131,27 +131,27 @@ workflows:
           cp -r out "$FELCIN_DIR/www"
           echo "Bundle: $(find "$FELCIN_DIR/www" -name '*.html' | wc -l) pages"
 
-          cat > /tmp/dl_fonts.py << 'PYEOF'
-import urllib.request, re, os, sys
-font_dir = sys.argv[1] if len(sys.argv) > 1 else ''
-try:
-    if not font_dir:
-        raise ValueError('font_dir arg missing')
-    os.makedirs(font_dir, exist_ok=True)
-    url = 'https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=block'
-    req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'})
-    css = urllib.request.urlopen(req, timeout=30).read().decode('utf-8')
-    woff_urls = list(dict.fromkeys(re.findall(r'url\((https://fonts\.gstatic\.com/[^)]+\.woff2)\)', css)))
-    for i, u in enumerate(woff_urls):
-        fname = f'ms{i}.woff2'
-        urllib.request.urlretrieve(u, os.path.join(font_dir, fname))
-        css = css.replace(u, f'/fonts/{fname}')
-    open(os.path.join(font_dir, 'ms.css'), 'w').write(css)
-    print(f'Fonts: {len(woff_urls)} woff2 files -> {font_dir}')
-except Exception as e:
-    print(f'WARNING: font download skipped ({e})')
-PYEOF
-          python3 /tmp/dl_fonts.py "$FELCIN_DIR/www/fonts" || echo "Font step skipped"
+          export FONT_DIR="$FELCIN_DIR/www/fonts"
+          python3 << 'PYEOF' || echo "Font step skipped"
+          import urllib.request, re, os
+          font_dir = os.environ.get('FONT_DIR', '')
+          try:
+              if not font_dir:
+                  raise ValueError('FONT_DIR not set')
+              os.makedirs(font_dir, exist_ok=True)
+              url = 'https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=block'
+              req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'})
+              css = urllib.request.urlopen(req, timeout=30).read().decode('utf-8')
+              woff_urls = list(dict.fromkeys(re.findall(r'url\((https://fonts\.gstatic\.com/[^)]+\.woff2)\)', css)))
+              for i, u in enumerate(woff_urls):
+                  fname = f'ms{i}.woff2'
+                  urllib.request.urlretrieve(u, os.path.join(font_dir, fname))
+                  css = css.replace(u, f'/fonts/{fname}')
+              open(os.path.join(font_dir, 'ms.css'), 'w').write(css)
+              print(f'Fonts: {len(woff_urls)} woff2 files')
+          except Exception as e:
+              print(f'WARNING: font download skipped ({e})')
+          PYEOF
 
       - name: Add iOS platform (fresh)
         script: |
@@ -561,27 +561,27 @@ PYEOF
           cp -r out "$FELCIN_DIR/www"
           echo "Bundle: $(find "$FELCIN_DIR/www" -name '*.html' | wc -l) pages"
 
-          cat > /tmp/dl_fonts.py << 'PYEOF'
-import urllib.request, re, os, sys
-font_dir = sys.argv[1] if len(sys.argv) > 1 else ''
-try:
-    if not font_dir:
-        raise ValueError('font_dir arg missing')
-    os.makedirs(font_dir, exist_ok=True)
-    url = 'https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=block'
-    req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'})
-    css = urllib.request.urlopen(req, timeout=30).read().decode('utf-8')
-    woff_urls = list(dict.fromkeys(re.findall(r'url\((https://fonts\.gstatic\.com/[^)]+\.woff2)\)', css)))
-    for i, u in enumerate(woff_urls):
-        fname = f'ms{i}.woff2'
-        urllib.request.urlretrieve(u, os.path.join(font_dir, fname))
-        css = css.replace(u, f'/fonts/{fname}')
-    open(os.path.join(font_dir, 'ms.css'), 'w').write(css)
-    print(f'Fonts: {len(woff_urls)} woff2 files -> {font_dir}')
-except Exception as e:
-    print(f'WARNING: font download skipped ({e})')
-PYEOF
-          python3 /tmp/dl_fonts.py "$FELCIN_DIR/www/fonts" || echo "Font step skipped"
+          export FONT_DIR="$FELCIN_DIR/www/fonts"
+          python3 << 'PYEOF' || echo "Font step skipped"
+          import urllib.request, re, os
+          font_dir = os.environ.get('FONT_DIR', '')
+          try:
+              if not font_dir:
+                  raise ValueError('FONT_DIR not set')
+              os.makedirs(font_dir, exist_ok=True)
+              url = 'https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=block'
+              req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'})
+              css = urllib.request.urlopen(req, timeout=30).read().decode('utf-8')
+              woff_urls = list(dict.fromkeys(re.findall(r'url\((https://fonts\.gstatic\.com/[^)]+\.woff2)\)', css)))
+              for i, u in enumerate(woff_urls):
+                  fname = f'ms{i}.woff2'
+                  urllib.request.urlretrieve(u, os.path.join(font_dir, fname))
+                  css = css.replace(u, f'/fonts/{fname}')
+              open(os.path.join(font_dir, 'ms.css'), 'w').write(css)
+              print(f'Fonts: {len(woff_urls)} woff2 files')
+          except Exception as e:
+              print(f'WARNING: font download skipped ({e})')
+          PYEOF
 
       - name: Capacitor sync Android
         script: |
