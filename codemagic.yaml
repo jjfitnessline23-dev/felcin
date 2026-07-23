@@ -5,6 +5,7 @@ workflows:
     name: Felcin iOS - App Store
     max_build_duration: 120
     instance_type: mac_mini_m2
+    cancel_previous_builds: true
     triggering:
       events:
         - push
@@ -467,6 +468,7 @@ workflows:
     name: Felcin Android - Google Play
     max_build_duration: 120
     instance_type: mac_mini_m2
+    cancel_previous_builds: true
     triggering:
       events:
         - push

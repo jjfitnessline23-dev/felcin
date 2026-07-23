@@ -43,14 +43,14 @@ ent_ref.source_tree = '<group>'
 ent_ref.last_known_file_type = 'text.plist.entitlements'
 
 # Create watchOS application target
-watch_target = project.new_target(:application, WATCH_NAME, :watchos, '8.0')
+watch_target = project.new_target(:application, WATCH_NAME, :watchos, '9.0')
 
 watch_target.build_configurations.each do |cfg|
   s = cfg.build_settings
   s['PRODUCT_BUNDLE_IDENTIFIER']   = BUNDLE_ID
   s['PRODUCT_NAME']                = WATCH_NAME
   s['SDKROOT']                     = 'watchos'
-  s['WATCHOS_DEPLOYMENT_TARGET']   = '8.0'
+  s['WATCHOS_DEPLOYMENT_TARGET']   = '9.0'
   s['SWIFT_VERSION']               = '5.0'
   s['DEVELOPMENT_TEAM']            = TEAM_ID
   s['CODE_SIGN_STYLE']             = 'Manual'
