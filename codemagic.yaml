@@ -7,12 +7,6 @@ workflows:
     max_build_duration: 120
     instance_type: mac_mini_m2
     cancel_previous_builds: true
-    triggering:
-      events:
-        - push
-      branch_patterns:
-        - pattern: master
-          include: true
     integrations:
       app_store_connect: Codemagic
     environment:
@@ -470,18 +464,6 @@ workflows:
     max_build_duration: 120
     instance_type: mac_mini_m2
     cancel_previous_builds: true
-    triggering:
-      events:
-        - push
-      branch_patterns:
-        - pattern: master
-          include: true
-      changeset:
-        includes:
-          - android/**
-          - package.json
-          - package-lock.json
-          - capacitor.config.json
     environment:
       groups:
         - android
