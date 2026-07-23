@@ -475,6 +475,12 @@ workflows:
       branch_patterns:
         - pattern: master
           include: true
+      changeset:
+        includes:
+          - android/**
+          - package.json
+          - package-lock.json
+          - capacitor.config.json
     environment:
       groups:
         - android
