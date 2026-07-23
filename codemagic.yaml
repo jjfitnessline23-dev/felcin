@@ -341,6 +341,10 @@ workflows:
                   <string>applinks:felcin.com</string>
                   <string>applinks:www.felcin.com</string>
               </array>
+              <key>com.apple.developer.healthkit</key>
+              <true/>
+              <key>com.apple.developer.healthkit.background-delivery</key>
+              <true/>
           </dict></plist>""".strip())
           PYEOF
 
@@ -357,6 +361,19 @@ workflows:
           cd ios/App
           rm -f Podfile.lock
           pod install --repo-update
+
+      - name: Inject Watch app target
+        script: |
+          gem install xcodeproj --quiet 2>/dev/null || true
+          # Decode Watch provisioning profile and install it
+          PROFILES="$HOME/Library/MobileDevice/Provisioning Profiles"
+          mkdir -p "$PROFILES"
+          echo "$WATCH_PROVISIONING_PROFILE" | base64 --decode > /tmp/watch_profile.mobileprovision
+          security cms -D -i /tmp/watch_profile.mobileprovision -o /tmp/watch_decoded.plist 2>/dev/null
+          WATCH_UUID=$(/usr/libexec/PlistBuddy -c 'Print :UUID' /tmp/watch_decoded.plist)
+          cp /tmp/watch_profile.mobileprovision "$PROFILES/$WATCH_UUID.mobileprovision"
+          export WATCH_PROFILE_UUID="$WATCH_UUID"
+          ruby inject_watch_target.rb
 
       - name: Set up code signing
         script: |
@@ -378,6 +395,11 @@ workflows:
           UUID=$(/usr/libexec/PlistBuddy -c 'Print :UUID' /tmp/decoded.plist)
           cp /tmp/profile.mobileprovision "$PROFILES/$UUID.mobileprovision"
 
+          # Install Watch profile (already copied above; grab UUID again)
+          echo "$WATCH_PROVISIONING_PROFILE" | base64 --decode > /tmp/watch_profile.mobileprovision
+          security cms -D -i /tmp/watch_profile.mobileprovision -o /tmp/watch_decoded.plist 2>/dev/null
+          WATCH_UUID=$(/usr/libexec/PlistBuddy -c 'Print :UUID' /tmp/watch_decoded.plist)
+
           PBXPROJ="ios/App/App.xcodeproj/project.pbxproj"
           perl -i -pe "s/CODE_SIGN_STYLE = Automatic;/CODE_SIGN_STYLE = Manual;\n\t\t\t\tPROVISIONING_PROFILE_SPECIFIER = \"$UUID\";/g" "$PBXPROJ"
           perl -i -pe 's/CODE_SIGN_IDENTITY = "iPhone Developer";/CODE_SIGN_IDENTITY = "Apple Distribution";/g' "$PBXPROJ"
@@ -392,7 +414,10 @@ workflows:
             <key>signingStyle</key><string>manual</string>
             <key>signingCertificate</key><string>Apple Distribution</string>
             <key>provisioningProfiles</key>
-            <dict><key>com.felcin.app</key><string>$UUID</string></dict>
+            <dict>
+              <key>com.felcin.app</key><string>$UUID</string>
+              <key>com.felcin.app.watchkitapp</key><string>$WATCH_UUID</string>
+            </dict>
           </dict></plist>
           PLIST
 
