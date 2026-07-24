@@ -313,12 +313,6 @@ workflows:
           }
           SWIFTEOF
 
-      - name: iPhone only
-        script: |
-          PBXPROJ="ios/App/App.xcodeproj/project.pbxproj"
-          perl -i -pe 's/TARGETED_DEVICE_FAMILY = "1,2";/TARGETED_DEVICE_FAMILY = 1;/g' "$PBXPROJ"
-          perl -i -pe 's/TARGETED_DEVICE_FAMILY = 1,2;/TARGETED_DEVICE_FAMILY = 1;/g' "$PBXPROJ"
-
       - name: Enable Google Sign-In subspec
         script: |
           perl -i -pe "s/default_subspec = 'Lite'/default_subspec = 'Google'/" \
@@ -431,7 +425,7 @@ workflows:
             DEVELOPMENT_TEAM=UWSVWR4VTX \
             CODE_SIGN_STYLE=Manual \
             CODE_SIGN_IDENTITY="Apple Distribution" \
-            MARKETING_VERSION=1.5 \
+            MARKETING_VERSION=1.6 \
             CURRENT_PROJECT_VERSION=$BUILD_NUMBER
 
           xcodebuild -exportArchive \
