@@ -77,46 +77,59 @@ icon_script.name = 'Compile Watch App Icons'
 icon_script.shell_path = '/bin/bash'
 icon_script.show_env_vars_in_log = '0'
 icon_script.shell_script = <<~'BASH'
-  set -e
-  # logo_ios_1024.png is at repo root — 2 levels above ios/App/ (SRCROOT)
+  echo "=== Watch Icons script starting ==="
+  echo "  BUILT_PRODUCTS_DIR=$BUILT_PRODUCTS_DIR"
+  echo "  PRODUCT_NAME=$PRODUCT_NAME"
+  echo "  SRCROOT=$SRCROOT"
+
   LOGO="${SRCROOT}/../../logo_ios_1024.png"
   if [ ! -f "$LOGO" ]; then
-    echo "warning: logo_ios_1024.png not found at $LOGO — Watch icons skipped"
+    echo "=== Watch Icons: logo not found at $LOGO — skipped ==="
     exit 0
   fi
 
+  BUNDLE_DIR="${BUILT_PRODUCTS_DIR}/${PRODUCT_NAME}.app"
+  echo "  Bundle dir: $BUNDLE_DIR"
+  ls "$BUNDLE_DIR" 2>/dev/null | head -5 || echo "  (bundle dir not yet created)"
+
   TMPCAT=$(mktemp -d)
-  trap "rm -rf '$TMPCAT'" EXIT
   ICONSET="$TMPCAT/AppIcon.appiconset"
   mkdir -p "$ICONSET"
 
-  # Root Contents.json required for actool to recognise the catalog
   printf '{"info":{"author":"xcode","version":1}}' > "$TMPCAT/Contents.json"
+  printf '{"images":[{"filename":"i80.png","idiom":"watch","role":"appLauncher","scale":"2x","size":"80x80","subtype":"38mm"},{"filename":"i88.png","idiom":"watch","role":"appLauncher","scale":"2x","size":"88x88","subtype":"40mm"},{"filename":"i92.png","idiom":"watch","role":"appLauncher","scale":"2x","size":"92x92","subtype":"41mm"},{"filename":"i100.png","idiom":"watch","role":"appLauncher","scale":"2x","size":"100x100","subtype":"44mm"},{"filename":"i102.png","idiom":"watch","role":"appLauncher","scale":"2x","size":"102x102","subtype":"45mm"},{"filename":"i108.png","idiom":"watch","role":"appLauncher","scale":"2x","size":"108x108","subtype":"49mm"},{"filename":"i1024.png","idiom":"watch-marketing","scale":"1x","size":"1024x1024"}],"info":{"author":"xcode","version":1}}' > "$ICONSET/Contents.json"
 
-  # Icon set Contents.json — all required watchOS sizes
-  cat > "$ICONSET/Contents.json" << 'EOF'
-  {"images":[{"filename":"i80.png","idiom":"watch","role":"appLauncher","scale":"2x","size":"80x80","subtype":"38mm"},{"filename":"i88.png","idiom":"watch","role":"appLauncher","scale":"2x","size":"88x88","subtype":"40mm"},{"filename":"i92.png","idiom":"watch","role":"appLauncher","scale":"2x","size":"92x92","subtype":"41mm"},{"filename":"i100.png","idiom":"watch","role":"appLauncher","scale":"2x","size":"100x100","subtype":"44mm"},{"filename":"i102.png","idiom":"watch","role":"appLauncher","scale":"2x","size":"102x102","subtype":"45mm"},{"filename":"i108.png","idiom":"watch","role":"appLauncher","scale":"2x","size":"108x108","subtype":"49mm"},{"filename":"i1024.png","idiom":"watch-marketing","scale":"1x","size":"1024x1024"}],"info":{"author":"xcode","version":1}}
-EOF
-
-  # Resize logo into each required size
   for SIZE in 80 88 92 100 102 108; do
     sips -z $SIZE $SIZE "$LOGO" --out "$ICONSET/i${SIZE}.png" > /dev/null 2>&1
   done
   cp "$LOGO" "$ICONSET/i1024.png"
+  echo "  Source PNGs: $(ls $ICONSET/*.png | wc -l)"
 
-  # Compile asset catalog — writes Assets.car into the built Watch app bundle
-  BUNDLE_DIR="${BUILT_PRODUCTS_DIR}/${PRODUCT_NAME}.app"
   rm -f "${BUNDLE_DIR}/Assets.car"
+  PARTIAL="${TMPCAT}/partial.plist"
   xcrun actool "$TMPCAT" \
     --compile "$BUNDLE_DIR" \
     --platform watchos \
     --minimum-deployment-target 9.0 \
     --target-device watch \
     --app-icon AppIcon \
-    --output-partial-info-plist /dev/null \
-    2>&1 || true
+    --output-partial-info-plist "$PARTIAL" \
+    2>&1 || echo "  actool returned non-zero (non-fatal)"
 
-  echo "Watch icon Assets.car compiled into ${BUNDLE_DIR}"
+  ls -la "${BUNDLE_DIR}/Assets.car" 2>/dev/null && echo "  Assets.car OK" || echo "  WARNING: Assets.car missing"
+
+  # Set CFBundleIconName in the compiled Info.plist regardless of GENERATE_INFOPLIST_FILE setting
+  PLIST="${BUNDLE_DIR}/Info.plist"
+  if [ -f "$PLIST" ]; then
+    /usr/libexec/PlistBuddy -c "Delete :CFBundleIconName" "$PLIST" 2>/dev/null || true
+    /usr/libexec/PlistBuddy -c "Add :CFBundleIconName string AppIcon" "$PLIST"
+    echo "  CFBundleIconName=AppIcon written to $PLIST"
+  else
+    echo "  WARNING: $PLIST not found yet — will set after copy phase"
+  fi
+
+  rm -rf "$TMPCAT"
+  echo "=== Watch Icons script complete ==="
 BASH
 
 # Append icon script phase after Compile Sources
