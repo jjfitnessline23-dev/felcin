@@ -69,9 +69,10 @@ end
 # Add Swift files to Compile Sources
 swift_refs.each { |ref| watch_target.source_build_phase.add_file_reference(ref) }
 
-# Add a Script Build Phase that generates & compiles Watch icons during the Xcode build.
-# This runs as part of the Watch target's build, writing Assets.car into the built .app
-# before it gets archived — no post-archive injection needed.
+# Script phase added to the MAIN APP target (not Watch target), running after
+# "Embed Watch Content" copies FelcinWatch.app into App.app/Watch/.
+# This ensures we modify the embedded Watch app in the correct final location,
+# right before Xcode's implicit code-signing sweep.
 icon_script = project.new(Xcodeproj::Project::Object::PBXShellScriptBuildPhase)
 icon_script.name = 'Compile Watch App Icons'
 icon_script.shell_path = '/bin/bash'
@@ -88,9 +89,11 @@ icon_script.shell_script = <<~'BASH'
     exit 0
   fi
 
-  BUNDLE_DIR="${BUILT_PRODUCTS_DIR}/${PRODUCT_NAME}.app"
+  # Target the Watch app embedded inside App.app/Watch/ — this is where it lives
+  # after the main App target's "Embed Watch Content" build phase copies it in.
+  BUNDLE_DIR="${BUILT_PRODUCTS_DIR}/App.app/Watch/FelcinWatch.app"
   echo "  Bundle dir: $BUNDLE_DIR"
-  ls "$BUNDLE_DIR" 2>/dev/null | head -5 || echo "  (bundle dir not yet created)"
+  ls "$BUNDLE_DIR" 2>/dev/null | head -5 || echo "  (bundle dir not found yet)"
 
   TMPCAT=$(mktemp -d)
   ICONSET="$TMPCAT/AppIcon.appiconset"
@@ -132,9 +135,7 @@ icon_script.shell_script = <<~'BASH'
   echo "=== Watch Icons script complete ==="
 BASH
 
-# Append icon script phase after Compile Sources
-watch_target.build_phases << icon_script
-puts "Icon script build phase added"
+puts "Icon script build phase prepared"
 
 # Make iPhone app depend on Watch app (embeds it)
 main_target = project.targets.find { |t| t.name == 'App' }
@@ -155,6 +156,12 @@ if main_target
   build_file.file_ref = watch_product_ref
   build_file.settings = { 'ATTRIBUTES' => ['RemoveHeadersOnCopy'] }
   embed_phase.files << build_file
+
+  # Add icon script to MAIN App target, after Embed Watch Content.
+  # By this point App.app/Watch/FelcinWatch.app already exists, so we can
+  # modify it directly before Xcode's implicit code-signing sweep.
+  main_target.build_phases << icon_script
+  puts "Icon script added to main App target (after Embed Watch Content)"
 end
 
 project.save
