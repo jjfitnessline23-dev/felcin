@@ -480,22 +480,11 @@ workflows:
 
             # Merge CFBundleIcons from actool partial plist into Watch Info.plist
             if [ -f "$PARTIAL" ]; then
-              export PARTIAL WATCH_APP
-              python3 - << 'PYEOF'
-import plistlib, os
-with open(os.environ['PARTIAL'], 'rb') as f:
-    partial = plistlib.load(f)
-plist_path = os.path.join(os.environ['WATCH_APP'], 'Info.plist')
-with open(plist_path, 'rb') as f:
-    plist = plistlib.load(f)
-for key in ['CFBundleIcons', 'CFBundlePrimaryIcon']:
-    if key in partial:
-        plist[key] = partial[key]
-with open(plist_path, 'wb') as f:
-    plistlib.dump(plist, f)
-icons_present = 'CFBundleIcons' in plist
-print(f'Info.plist patched — CFBundleIcons present: {icons_present}')
-PYEOF
+              WATCH_PLIST="$WATCH_APP/Info.plist"
+              /usr/libexec/PlistBuddy -c "Delete :CFBundleIcons" "$WATCH_PLIST" 2>/dev/null || true
+              /usr/libexec/PlistBuddy -c "Merge $PARTIAL" "$WATCH_PLIST" \
+                && echo "Info.plist patched with CFBundleIcons" \
+                || echo "Merge failed (non-fatal)"
             fi
 
             rm -rf "$WORK"
