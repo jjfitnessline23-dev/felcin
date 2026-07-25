@@ -360,6 +360,17 @@ workflows:
           export WATCH_PROFILE_UUID="$WATCH_UUID"
           ruby inject_watch_target.rb
 
+      - name: Generate Watch app icon
+        script: |
+          set -e
+          XCASSETS="ios/App/FelcinWatch/Assets.xcassets/AppIcon.appiconset"
+          LOGO="ios-icons/AppIcon-1024@1x.png"
+          echo "Watch xcassets contents before:"
+          ls -la "$XCASSETS/" || { echo "ERROR: xcassets not found — inject_watch_target.rb may have failed"; exit 1; }
+          sips -z 1024 1024 "$LOGO" --out "$XCASSETS/AppIcon-1024.png"
+          echo "Generated AppIcon-1024.png ($(ls -lah "$XCASSETS/AppIcon-1024.png" | awk '{print $5}'))"
+          file "$XCASSETS/AppIcon-1024.png"
+
       - name: Set up code signing
         script: |
           echo "$DIST_CERT_P12" | base64 --decode > /tmp/distribution.p12
