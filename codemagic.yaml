@@ -435,21 +435,13 @@ workflows:
 
           echo "IPA: $(find $IPA_DIR -name '*.ipa' | head -1)"
 
-      - name: Upload to TestFlight
-        script: |
-          IPA=$(find build/ios/ipa -name "*.ipa" | head -1)
-          mkdir -p ~/private_keys
-          echo "$APP_STORE_KEY_B64" | base64 --decode > ~/private_keys/AuthKey_${APP_STORE_CONNECT_KEY_IDENTIFIER}.p8
-          xcrun altool --upload-app \
-            --file "$IPA" --type ios \
-            --apple-id 6763660775 \
-            --apiKey "$APP_STORE_CONNECT_KEY_IDENTIFIER" \
-            --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID" \
-            --output-format json \
-          || echo "⚠️ TestFlight upload failed (rate limit?). IPA saved as artifact."
-
     artifacts:
       - build/ios/ipa/*.ipa
+
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
 
 
   # ── Android ──────────────────────────────────────────────────────────────────
