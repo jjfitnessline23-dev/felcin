@@ -465,11 +465,21 @@ workflows:
           [ -f "$WORK/partial.plist" ] && /usr/libexec/PlistBuddy -c "Merge $WORK/partial.plist" "$WATCH_APP/Info.plist" && echo "plist patched" || echo "plist merge skipped"
           security cms -D -i /tmp/watch_profile.mobileprovision -o "$WORK/wdec.plist" 2>/dev/null
           /usr/libexec/PlistBuddy -x -c "Print :Entitlements" "$WORK/wdec.plist" > "$WORK/watch_ents.plist" 2>/dev/null
-          echo "Re-signing Watch app..."
+          echo "Re-signing Watch app (entitlements from Watch provisioning profile)..."
+          security cms -D -i "$WATCH_APP/embedded.mobileprovision" -o "$WORK/wdec.plist" 2>/dev/null
+          /usr/libexec/PlistBuddy -x -c "Print :Entitlements" "$WORK/wdec.plist" > "$WORK/watch_ents.plist" 2>/dev/null
           codesign --force --sign "Apple Distribution" --entitlements "$WORK/watch_ents.plist" --timestamp "$WATCH_APP" 2>&1
-          echo "Re-signing main App..."
-          codesign -d --entitlements - "$MAIN_APP" > "$WORK/main_ents.plist" 2>/dev/null || true
+          echo "Watch re-sign exit: $?"
+          echo "Re-signing Frameworks (inside-out order)..."
+          find "$MAIN_APP/Frameworks" -maxdepth 1 \( -name "*.framework" -o -name "*.dylib" \) 2>/dev/null | while read f; do
+            codesign --force --sign "Apple Distribution" --timestamp "$f" 2>&1 || true
+          done
+          echo "Re-signing main App (entitlements from its embedded provisioning profile)..."
+          security cms -D -i "$MAIN_APP/embedded.mobileprovision" -o "$WORK/main_prov.plist" 2>/dev/null
+          /usr/libexec/PlistBuddy -x -c "Print :Entitlements" "$WORK/main_prov.plist" > "$WORK/main_ents.plist" 2>/dev/null
           codesign --force --sign "Apple Distribution" --entitlements "$WORK/main_ents.plist" --timestamp "$MAIN_APP" 2>&1
+          echo "Main re-sign exit: $?"
+          echo "Verify signature: $(codesign -v "$MAIN_APP" 2>&1 || echo INVALID)"
           echo "Repacking IPA..."
           cd ex && zip -qr "$IPA_FILE" Payload/ && cd ..
           rm -rf "$WORK" && cd "$CWD" && rm -rf "$PATCH"
