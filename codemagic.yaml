@@ -350,13 +350,17 @@ workflows:
 
       - name: Generate Watch app icons
         script: |
+          set -e
           LOGO="ios-icons/AppIcon-1024@1x.png"
           ICONSET="ios-watch/Assets.xcassets/AppIcon.appiconset"
+          [ -f "$LOGO" ] || { echo "ERROR: logo not found at $LOGO"; exit 1; }
           for SIZE in 80 88 92 100 102 108; do
             sips -z $SIZE $SIZE "$LOGO" --out "$ICONSET/AppIcon-${SIZE}.png"
           done
           cp "$LOGO" "$ICONSET/AppIcon-1024.png"
-          echo "Watch icons generated: $(ls $ICONSET/*.png | wc -l) files"
+          COUNT=$(ls "$ICONSET"/*.png 2>/dev/null | wc -l | tr -d ' ')
+          echo "Watch icons generated: $COUNT files"
+          [ "$COUNT" = "7" ] || { echo "ERROR: expected 7 PNGs, got $COUNT"; exit 1; }
 
       - name: Inject Watch app target
         script: |
@@ -437,6 +441,71 @@ workflows:
             CODE_SIGN_IDENTITY="Apple Distribution" \
             MARKETING_VERSION=1.6 \
             CURRENT_PROJECT_VERSION=$BUILD_NUMBER
+
+          # Patch Watch app icons directly into xcarchive before export.
+          # xcodebuild -exportArchive re-signs everything, so we don't need to
+          # sign after patching — just ensure Assets.car and CFBundleIcons are present.
+          WATCH_APP=$(find "$ARCHIVE/Products" -name "FelcinWatch.app" 2>/dev/null | head -1)
+          if [ -n "$WATCH_APP" ]; then
+            echo "=== Patching Watch icons ==="
+            echo "Bundle: $WATCH_APP"
+            echo "Before: $(ls "$WATCH_APP" | tr '\n' ' ')"
+
+            LOGO="ios-icons/AppIcon-1024@1x.png"
+            WORK=$(mktemp -d)
+            XCASSETS="$WORK/WatchIcons.xcassets"
+            ICONSET="$XCASSETS/AppIcon.appiconset"
+            mkdir -p "$ICONSET"
+
+            printf '{"info":{"author":"xcode","version":1}}' > "$XCASSETS/Contents.json"
+            cat > "$ICONSET/Contents.json" << 'ICONJSON'
+{"images":[{"filename":"i80.png","idiom":"watch","role":"appLauncher","scale":"2x","size":"80x80","subtype":"38mm"},{"filename":"i88.png","idiom":"watch","role":"appLauncher","scale":"2x","size":"88x88","subtype":"40mm"},{"filename":"i92.png","idiom":"watch","role":"appLauncher","scale":"2x","size":"92x92","subtype":"41mm"},{"filename":"i100.png","idiom":"watch","role":"appLauncher","scale":"2x","size":"100x100","subtype":"44mm"},{"filename":"i102.png","idiom":"watch","role":"appLauncher","scale":"2x","size":"102x102","subtype":"45mm"},{"filename":"i108.png","idiom":"watch","role":"appLauncher","scale":"2x","size":"108x108","subtype":"49mm"},{"filename":"i1024.png","idiom":"watch-marketing","scale":"1x","size":"1024x1024"}],"info":{"author":"xcode","version":1}}
+ICONJSON
+
+            for SIZE in 80 88 92 100 102 108; do
+              sips -z $SIZE $SIZE "$LOGO" --out "$ICONSET/i${SIZE}.png" > /dev/null
+            done
+            cp "$LOGO" "$ICONSET/i1024.png"
+
+            PARTIAL="$WORK/partial.plist"
+            xcrun actool "$XCASSETS" \
+              --compile "$WATCH_APP" \
+              --platform watchos \
+              --minimum-deployment-target 9.0 \
+              --target-device watch \
+              --product-type com.apple.product-type.application.watchapp2 \
+              --app-icon AppIcon \
+              --output-partial-info-plist "$PARTIAL" \
+              2>&1 || echo "actool exited non-zero (continuing)"
+
+            echo "Assets.car: $(ls -lah "$WATCH_APP/Assets.car" 2>/dev/null || echo MISSING)"
+
+            # Merge CFBundleIcons from actool partial plist into Watch Info.plist
+            if [ -f "$PARTIAL" ]; then
+              export PARTIAL WATCH_APP
+              python3 - << 'PYEOF'
+import plistlib, os
+with open(os.environ['PARTIAL'], 'rb') as f:
+    partial = plistlib.load(f)
+plist_path = os.path.join(os.environ['WATCH_APP'], 'Info.plist')
+with open(plist_path, 'rb') as f:
+    plist = plistlib.load(f)
+for key in ['CFBundleIcons', 'CFBundlePrimaryIcon']:
+    if key in partial:
+        plist[key] = partial[key]
+with open(plist_path, 'wb') as f:
+    plistlib.dump(plist, f)
+icons_present = 'CFBundleIcons' in plist
+print(f'Info.plist patched — CFBundleIcons present: {icons_present}')
+PYEOF
+            fi
+
+            rm -rf "$WORK"
+            echo "After: $(ls "$WATCH_APP" | tr '\n' ' ')"
+            echo "=== Watch icon patch complete ==="
+          else
+            echo "WARNING: FelcinWatch.app not found in xcarchive"
+          fi
 
           xcodebuild -exportArchive \
             -archivePath "$ARCHIVE" \
