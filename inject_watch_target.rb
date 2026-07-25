@@ -57,7 +57,7 @@ watch_target.build_configurations.each do |cfg|
   s['CODE_SIGN_IDENTITY']          = 'Apple Distribution'
   s['CODE_SIGN_ENTITLEMENTS']      = "#{WATCH_NAME}/FelcinWatch.entitlements"
   s['INFOPLIST_FILE']              = "#{WATCH_NAME}/Info.plist"
-  s['MARKETING_VERSION']           = '1.5'
+  s['MARKETING_VERSION']           = '1.6'
   s['TARGETED_DEVICE_FAMILY']      = '4'  # Apple Watch
   s['ALWAYS_SEARCH_USER_PATHS']    = 'NO'
   s['SWIFT_EMIT_LOC_STRINGS']      = 'YES'

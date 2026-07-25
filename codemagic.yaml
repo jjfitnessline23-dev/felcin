@@ -615,7 +615,7 @@ workflows:
           import os
           build_no = int(os.environ.get('BUILD_NUMBER', '1')) + 200
           content = re.sub(r'versionCode \d+', f'versionCode {build_no}', content)
-          content = re.sub(r'versionName "[^"]*"', 'versionName "1.5"', content)
+          content = re.sub(r'versionName "[^"]*"', 'versionName "1.6"', content)
           open(path, 'w').write(content)
           print(f'versionCode set to {build_no}')
           PYEOF
