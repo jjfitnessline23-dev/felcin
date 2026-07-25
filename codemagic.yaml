@@ -457,10 +457,8 @@ workflows:
             ICONSET="$XCASSETS/AppIcon.appiconset"
             mkdir -p "$ICONSET"
 
-            printf '{"info":{"author":"xcode","version":1}}' > "$XCASSETS/Contents.json"
-            cat > "$ICONSET/Contents.json" << 'ICONJSON'
-{"images":[{"filename":"i80.png","idiom":"watch","role":"appLauncher","scale":"2x","size":"80x80","subtype":"38mm"},{"filename":"i88.png","idiom":"watch","role":"appLauncher","scale":"2x","size":"88x88","subtype":"40mm"},{"filename":"i92.png","idiom":"watch","role":"appLauncher","scale":"2x","size":"92x92","subtype":"41mm"},{"filename":"i100.png","idiom":"watch","role":"appLauncher","scale":"2x","size":"100x100","subtype":"44mm"},{"filename":"i102.png","idiom":"watch","role":"appLauncher","scale":"2x","size":"102x102","subtype":"45mm"},{"filename":"i108.png","idiom":"watch","role":"appLauncher","scale":"2x","size":"108x108","subtype":"49mm"},{"filename":"i1024.png","idiom":"watch-marketing","scale":"1x","size":"1024x1024"}],"info":{"author":"xcode","version":1}}
-ICONJSON
+            printf '%s\n' '{"info":{"author":"xcode","version":1}}' > "$XCASSETS/Contents.json"
+            printf '%s\n' '{"images":[{"filename":"i80.png","idiom":"watch","role":"appLauncher","scale":"2x","size":"80x80","subtype":"38mm"},{"filename":"i88.png","idiom":"watch","role":"appLauncher","scale":"2x","size":"88x88","subtype":"40mm"},{"filename":"i92.png","idiom":"watch","role":"appLauncher","scale":"2x","size":"92x92","subtype":"41mm"},{"filename":"i100.png","idiom":"watch","role":"appLauncher","scale":"2x","size":"100x100","subtype":"44mm"},{"filename":"i102.png","idiom":"watch","role":"appLauncher","scale":"2x","size":"102x102","subtype":"45mm"},{"filename":"i108.png","idiom":"watch","role":"appLauncher","scale":"2x","size":"108x108","subtype":"49mm"},{"filename":"i1024.png","idiom":"watch-marketing","scale":"1x","size":"1024x1024"}],"info":{"author":"xcode","version":1}}' > "$ICONSET/Contents.json"
 
             for SIZE in 80 88 92 100 102 108; do
               sips -z $SIZE $SIZE "$LOGO" --out "$ICONSET/i${SIZE}.png" > /dev/null
