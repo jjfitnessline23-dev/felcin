@@ -27,6 +27,24 @@
     <string>Felcin saves your running workouts to Apple Health.</string>
     <key>CFBundleIconName</key>
     <string>AppIcon</string>
+    <key>CFBundleIcons</key>
+    <dict>
+        <key>CFBundlePrimaryIcon</key>
+        <dict>
+            <key>CFBundleIconName</key>
+            <string>AppIcon</string>
+            <key>CFBundleIconFiles</key>
+            <array>
+                <string>AppIcon-80</string>
+                <string>AppIcon-88</string>
+                <string>AppIcon-92</string>
+                <string>AppIcon-100</string>
+                <string>AppIcon-102</string>
+                <string>AppIcon-108</string>
+                <string>AppIcon-1024</string>
+            </array>
+        </dict>
+    </dict>
     <key>WKCompanionAppBundleIdentifier</key>
     <string>com.felcin.app</string>
     <key>WKApplication</key>
