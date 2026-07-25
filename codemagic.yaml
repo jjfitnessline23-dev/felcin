@@ -436,7 +436,7 @@ workflows:
       - name: Patch Watch icons in IPA
         script: |
           CWD="$(pwd)"
-          IPA_FILE="$(find build/ios/ipa -name '*.ipa' | head -1)"
+          IPA_FILE="$(find "$CWD/build/ios/ipa" -name '*.ipa' | head -1)"
           [ -n "$IPA_FILE" ] || { echo "No IPA found"; exit 1; }
           echo "Patching Watch icons in: $IPA_FILE"
           PATCH=$(mktemp -d)
