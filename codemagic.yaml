@@ -450,6 +450,17 @@ workflows:
           LOGO="$CWD/ios-icons/AppIcon-1024@1x.png"
           [ -f "$LOGO" ] || { echo "ERROR: logo not found at $LOGO"; exit 1; }
           WORK=$(mktemp -d)
+
+          # Step 1: Copy PNG icons directly into Watch bundle.
+          # CFBundleIconFiles in Info.plist lists AppIcon-80 etc. — system looks for AppIcon-80.png.
+          echo "Copying PNG icons into Watch bundle..."
+          for SIZE in 80 88 92 100 102 108; do
+            sips -z $SIZE $SIZE "$LOGO" --out "$WATCH_APP/AppIcon-${SIZE}.png" > /dev/null && echo "  AppIcon-${SIZE}.png OK" || echo "  AppIcon-${SIZE}.png FAILED"
+          done
+          cp "$LOGO" "$WATCH_APP/AppIcon-1024.png"
+          echo "Icons in Watch bundle: $(ls "$WATCH_APP"/AppIcon-*.png 2>/dev/null | wc -l | tr -d ' ') PNGs"
+
+          # Step 2: Also compile asset catalog so Assets.car satisfies the 1024x1024-in-catalog requirement.
           XCASSETS="$WORK/WatchIcons.xcassets"
           ICONSET="$XCASSETS/AppIcon.appiconset"
           mkdir -p "$ICONSET"
@@ -459,10 +470,8 @@ workflows:
             sips -z $SIZE $SIZE "$LOGO" --out "$ICONSET/i${SIZE}.png" > /dev/null
           done
           cp "$LOGO" "$ICONSET/i1024.png"
-          xcrun actool "$XCASSETS" --compile "$WATCH_APP" --platform watchos --minimum-deployment-target 9.0 --target-device watch --app-icon AppIcon --output-partial-info-plist "$WORK/partial.plist" 2>&1 || echo "actool exit $? (continuing)"
+          xcrun actool "$XCASSETS" --compile "$WATCH_APP" --platform watchos --minimum-deployment-target 9.0 --target-device watch --app-icon AppIcon --output-partial-info-plist "$WORK/partial.plist" 2>&1 || echo "actool exit $? (non-fatal)"
           echo "Assets.car: $(ls -lah "$WATCH_APP/Assets.car" 2>/dev/null || echo MISSING)"
-          /usr/libexec/PlistBuddy -c "Delete :CFBundleIcons" "$WATCH_APP/Info.plist" 2>/dev/null || true
-          [ -f "$WORK/partial.plist" ] && /usr/libexec/PlistBuddy -c "Merge $WORK/partial.plist" "$WATCH_APP/Info.plist" && echo "plist patched" || echo "plist merge skipped"
           security cms -D -i /tmp/watch_profile.mobileprovision -o "$WORK/wdec.plist" 2>/dev/null
           /usr/libexec/PlistBuddy -x -c "Print :Entitlements" "$WORK/wdec.plist" > "$WORK/watch_ents.plist" 2>/dev/null
           echo "Re-signing Watch app (entitlements from Watch provisioning profile)..."
