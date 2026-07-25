@@ -75,8 +75,14 @@ assets_ref.last_known_file_type = 'folder.assetcatalog'
 # Add Swift files to Compile Sources
 swift_refs.each { |ref| watch_target.source_build_phase.add_file_reference(ref) }
 
-# Add asset catalog to Resources
-watch_target.resources_build_phase.add_file_reference(assets_ref)
+# Add asset catalog to Resources (create the phase if missing)
+res_phase = watch_target.resources_build_phase
+if res_phase.nil?
+  res_phase = project.new(Xcodeproj::Project::Object::PBXResourcesBuildPhase)
+  watch_target.build_phases << res_phase
+end
+res_phase.add_file_reference(assets_ref)
+puts "Asset catalog added to resources build phase"
 
 # Make iPhone app depend on Watch app (embeds it)
 main_target = project.targets.find { |t| t.name == 'App' }

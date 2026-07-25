@@ -356,7 +356,9 @@ workflows:
             sips -z $SIZE $SIZE logo_ios_1024.png --out "$ASSETS/AppIcon-${SIZE}.png"
           done
           cp logo_ios_1024.png "$ASSETS/AppIcon-1024.png"
-          echo "Watch icons: $(ls $ASSETS/*.png | wc -l) PNGs generated"
+          echo "Watch icons generated:"
+          ls -la ios-watch/Assets.xcassets/
+          ls -la "$ASSETS/"
 
       - name: Inject Watch app target
         script: |
