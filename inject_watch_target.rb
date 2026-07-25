@@ -13,7 +13,8 @@ FileUtils.mkdir_p(DEST_DIR)
 Dir.glob("#{WATCH_SRC}/Sources/*.swift").each { |f| FileUtils.cp(f, DEST_DIR) }
 FileUtils.cp("#{WATCH_SRC}/Info.plist",               DEST_DIR)
 FileUtils.cp("#{WATCH_SRC}/FelcinWatch.entitlements",  DEST_DIR)
-puts "Copied #{Dir.glob("#{DEST_DIR}/*").size} files to #{DEST_DIR}"
+FileUtils.cp_r("#{WATCH_SRC}/Assets.xcassets",        DEST_DIR)
+puts "Copied #{Dir.glob("#{DEST_DIR}/**/*").size} files to #{DEST_DIR}"
 
 project = Xcodeproj::Project.open(PROJ_PATH)
 
@@ -42,6 +43,11 @@ ent_ref = watch_group.new_file('FelcinWatch.entitlements')
 ent_ref.source_tree = '<group>'
 ent_ref.last_known_file_type = 'text.plist.entitlements'
 
+# Add asset catalog
+assets_ref = watch_group.new_reference('Assets.xcassets')
+assets_ref.source_tree = '<group>'
+assets_ref.last_known_file_type = 'folder.assetcatalog'
+
 # Create watchOS application target
 watch_target = project.new_target(:application, WATCH_NAME, :watchos, '9.0')
 
@@ -69,73 +75,8 @@ end
 # Add Swift files to Compile Sources
 swift_refs.each { |ref| watch_target.source_build_phase.add_file_reference(ref) }
 
-# Script phase added to the MAIN APP target (not Watch target), running after
-# "Embed Watch Content" copies FelcinWatch.app into App.app/Watch/.
-# This ensures we modify the embedded Watch app in the correct final location,
-# right before Xcode's implicit code-signing sweep.
-icon_script = project.new(Xcodeproj::Project::Object::PBXShellScriptBuildPhase)
-icon_script.name = 'Compile Watch App Icons'
-icon_script.shell_path = '/bin/bash'
-icon_script.show_env_vars_in_log = '0'
-icon_script.shell_script = <<~'BASH'
-  echo "=== Watch Icons script starting ==="
-  echo "  BUILT_PRODUCTS_DIR=$BUILT_PRODUCTS_DIR"
-  echo "  PRODUCT_NAME=$PRODUCT_NAME"
-  echo "  SRCROOT=$SRCROOT"
-
-  LOGO="${SRCROOT}/../../logo_ios_1024.png"
-  if [ ! -f "$LOGO" ]; then
-    echo "=== Watch Icons: logo not found at $LOGO — skipped ==="
-    exit 0
-  fi
-
-  # Target the Watch app embedded inside App.app/Watch/ — this is where it lives
-  # after the main App target's "Embed Watch Content" build phase copies it in.
-  BUNDLE_DIR="${BUILT_PRODUCTS_DIR}/App.app/Watch/FelcinWatch.app"
-  echo "  Bundle dir: $BUNDLE_DIR"
-  ls "$BUNDLE_DIR" 2>/dev/null | head -5 || echo "  (bundle dir not found yet)"
-
-  TMPCAT=$(mktemp -d)
-  ICONSET="$TMPCAT/AppIcon.appiconset"
-  mkdir -p "$ICONSET"
-
-  printf '{"info":{"author":"xcode","version":1}}' > "$TMPCAT/Contents.json"
-  printf '{"images":[{"filename":"i80.png","idiom":"watch","role":"appLauncher","scale":"2x","size":"80x80","subtype":"38mm"},{"filename":"i88.png","idiom":"watch","role":"appLauncher","scale":"2x","size":"88x88","subtype":"40mm"},{"filename":"i92.png","idiom":"watch","role":"appLauncher","scale":"2x","size":"92x92","subtype":"41mm"},{"filename":"i100.png","idiom":"watch","role":"appLauncher","scale":"2x","size":"100x100","subtype":"44mm"},{"filename":"i102.png","idiom":"watch","role":"appLauncher","scale":"2x","size":"102x102","subtype":"45mm"},{"filename":"i108.png","idiom":"watch","role":"appLauncher","scale":"2x","size":"108x108","subtype":"49mm"},{"filename":"i1024.png","idiom":"watch-marketing","scale":"1x","size":"1024x1024"}],"info":{"author":"xcode","version":1}}' > "$ICONSET/Contents.json"
-
-  for SIZE in 80 88 92 100 102 108; do
-    sips -z $SIZE $SIZE "$LOGO" --out "$ICONSET/i${SIZE}.png" > /dev/null 2>&1
-  done
-  cp "$LOGO" "$ICONSET/i1024.png"
-  echo "  Source PNGs: $(ls $ICONSET/*.png | wc -l)"
-
-  rm -f "${BUNDLE_DIR}/Assets.car"
-  PARTIAL="${TMPCAT}/partial.plist"
-  xcrun actool "$TMPCAT" \
-    --compile "$BUNDLE_DIR" \
-    --platform watchos \
-    --minimum-deployment-target 9.0 \
-    --target-device watch \
-    --app-icon AppIcon \
-    --output-partial-info-plist "$PARTIAL" \
-    2>&1 || echo "  actool returned non-zero (non-fatal)"
-
-  ls -la "${BUNDLE_DIR}/Assets.car" 2>/dev/null && echo "  Assets.car OK" || echo "  WARNING: Assets.car missing"
-
-  # Set CFBundleIconName in the compiled Info.plist regardless of GENERATE_INFOPLIST_FILE setting
-  PLIST="${BUNDLE_DIR}/Info.plist"
-  if [ -f "$PLIST" ]; then
-    /usr/libexec/PlistBuddy -c "Delete :CFBundleIconName" "$PLIST" 2>/dev/null || true
-    /usr/libexec/PlistBuddy -c "Add :CFBundleIconName string AppIcon" "$PLIST"
-    echo "  CFBundleIconName=AppIcon written to $PLIST"
-  else
-    echo "  WARNING: $PLIST not found yet — will set after copy phase"
-  fi
-
-  rm -rf "$TMPCAT"
-  echo "=== Watch Icons script complete ==="
-BASH
-
-puts "Icon script build phase prepared"
+# Add asset catalog to Watch target resources
+watch_target.resources_build_phase.add_file_reference(assets_ref)
 
 # Make iPhone app depend on Watch app (embeds it)
 main_target = project.targets.find { |t| t.name == 'App' }
@@ -156,12 +97,6 @@ if main_target
   build_file.file_ref = watch_product_ref
   build_file.settings = { 'ATTRIBUTES' => ['RemoveHeadersOnCopy'] }
   embed_phase.files << build_file
-
-  # Add icon script to MAIN App target, after Embed Watch Content.
-  # By this point App.app/Watch/FelcinWatch.app already exists, so we can
-  # modify it directly before Xcode's implicit code-signing sweep.
-  main_target.build_phases << icon_script
-  puts "Icon script added to main App target (after Embed Watch Content)"
 end
 
 project.save
