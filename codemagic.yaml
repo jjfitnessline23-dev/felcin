@@ -433,6 +433,48 @@ workflows:
 
           echo "IPA: $(find $IPA_DIR -name '*.ipa' | head -1)"
 
+      - name: Patch Watch icons in IPA
+        script: |
+          CWD="$(pwd)"
+          IPA_FILE="$(find build/ios/ipa -name '*.ipa' | head -1)"
+          [ -n "$IPA_FILE" ] || { echo "No IPA found"; exit 1; }
+          echo "Patching Watch icons in: $IPA_FILE"
+          PATCH=$(mktemp -d)
+          cd "$PATCH"
+          unzip -q "$IPA_FILE" -d ex
+          WATCH_APP=$(find ex -name "FelcinWatch.app" | head -1)
+          MAIN_APP=$(find ex/Payload -maxdepth 1 -name "*.app" | head -1)
+          echo "Watch: $WATCH_APP"
+          echo "Main:  $MAIN_APP"
+          [ -n "$WATCH_APP" ] || { echo "ERROR: FelcinWatch.app not in IPA"; exit 1; }
+          LOGO="$CWD/ios-icons/AppIcon-1024@1x.png"
+          [ -f "$LOGO" ] || { echo "ERROR: logo not found at $LOGO"; exit 1; }
+          WORK=$(mktemp -d)
+          XCASSETS="$WORK/WatchIcons.xcassets"
+          ICONSET="$XCASSETS/AppIcon.appiconset"
+          mkdir -p "$ICONSET"
+          printf '%s\n' '{"info":{"author":"xcode","version":1}}' > "$XCASSETS/Contents.json"
+          printf '%s\n' '{"images":[{"filename":"i80.png","idiom":"watch","role":"appLauncher","scale":"2x","size":"80x80","subtype":"38mm"},{"filename":"i88.png","idiom":"watch","role":"appLauncher","scale":"2x","size":"88x88","subtype":"40mm"},{"filename":"i92.png","idiom":"watch","role":"appLauncher","scale":"2x","size":"92x92","subtype":"41mm"},{"filename":"i100.png","idiom":"watch","role":"appLauncher","scale":"2x","size":"100x100","subtype":"44mm"},{"filename":"i102.png","idiom":"watch","role":"appLauncher","scale":"2x","size":"102x102","subtype":"45mm"},{"filename":"i108.png","idiom":"watch","role":"appLauncher","scale":"2x","size":"108x108","subtype":"49mm"},{"filename":"i1024.png","idiom":"watch-marketing","scale":"1x","size":"1024x1024"}],"info":{"author":"xcode","version":1}}' > "$ICONSET/Contents.json"
+          for SIZE in 80 88 92 100 102 108; do
+            sips -z $SIZE $SIZE "$LOGO" --out "$ICONSET/i${SIZE}.png" > /dev/null
+          done
+          cp "$LOGO" "$ICONSET/i1024.png"
+          xcrun actool "$XCASSETS" --compile "$WATCH_APP" --platform watchos --minimum-deployment-target 9.0 --target-device watch --app-icon AppIcon --output-partial-info-plist "$WORK/partial.plist" 2>&1 || echo "actool exit $? (continuing)"
+          echo "Assets.car: $(ls -lah "$WATCH_APP/Assets.car" 2>/dev/null || echo MISSING)"
+          /usr/libexec/PlistBuddy -c "Delete :CFBundleIcons" "$WATCH_APP/Info.plist" 2>/dev/null || true
+          [ -f "$WORK/partial.plist" ] && /usr/libexec/PlistBuddy -c "Merge $WORK/partial.plist" "$WATCH_APP/Info.plist" && echo "plist patched" || echo "plist merge skipped"
+          security cms -D -i /tmp/watch_profile.mobileprovision -o "$WORK/wdec.plist" 2>/dev/null
+          /usr/libexec/PlistBuddy -x -c "Print :Entitlements" "$WORK/wdec.plist" > "$WORK/watch_ents.plist" 2>/dev/null
+          echo "Re-signing Watch app..."
+          codesign --force --sign "Apple Distribution" --entitlements "$WORK/watch_ents.plist" --timestamp "$WATCH_APP" 2>&1
+          echo "Re-signing main App..."
+          codesign -d --entitlements - "$MAIN_APP" > "$WORK/main_ents.plist" 2>/dev/null || true
+          codesign --force --sign "Apple Distribution" --entitlements "$WORK/main_ents.plist" --timestamp "$MAIN_APP" 2>&1
+          echo "Repacking IPA..."
+          cd ex && zip -qr "$IPA_FILE" Payload/ && cd ..
+          rm -rf "$WORK" && cd "$CWD" && rm -rf "$PATCH"
+          echo "=== Watch icon patch complete ==="
+
     artifacts:
       - build/ios/ipa/*.ipa
 
