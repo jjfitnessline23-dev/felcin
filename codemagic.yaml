@@ -458,7 +458,9 @@ workflows:
             sips -z $SIZE $SIZE "$LOGO" --out "$WATCH_APP/AppIcon-${SIZE}.png" > /dev/null && echo "  AppIcon-${SIZE}.png OK" || echo "  AppIcon-${SIZE}.png FAILED"
           done
           cp "$LOGO" "$WATCH_APP/AppIcon-1024.png"
-          echo "Icons in Watch bundle: $(ls "$WATCH_APP"/AppIcon-*.png 2>/dev/null | wc -l | tr -d ' ') PNGs"
+          ICON_COUNT=$(ls "$WATCH_APP"/AppIcon-*.png 2>/dev/null | wc -l | tr -d ' ')
+          echo "Icons in Watch bundle: $ICON_COUNT PNGs"
+          [ "$ICON_COUNT" -ge "6" ] || { echo "FATAL: sips failed to create icon PNGs"; exit 1; }
 
           # Step 2: Also compile asset catalog so Assets.car satisfies the 1024x1024-in-catalog requirement.
           XCASSETS="$WORK/WatchIcons.xcassets"
@@ -489,10 +491,20 @@ workflows:
           codesign --force --sign "Apple Distribution" --entitlements "$WORK/main_ents.plist" --timestamp "$MAIN_APP" 2>&1
           echo "Main re-sign exit: $?"
           echo "Verify signature: $(codesign -v "$MAIN_APP" 2>&1 || echo INVALID)"
-          echo "Repacking IPA..."
-          cd ex && zip -qr "$IPA_FILE" Payload/ && cd ..
-          rm -rf "$WORK" && cd "$CWD" && rm -rf "$PATCH"
-          echo "=== Watch icon patch complete ==="
+          echo "Repacking IPA (fresh zip)..."
+          rm -f "$IPA_FILE"
+          cd ex && zip -qr "$IPA_FILE" Payload/
+          echo "IPA size: $(ls -lah "$IPA_FILE" | awk '{print $5}')"
+          cd "$CWD"
+          echo "Verifying Watch icons in final IPA..."
+          VERIFY=$(mktemp -d)
+          unzip -q "$IPA_FILE" -d "$VERIFY"
+          VWATCH=$(find "$VERIFY" -name "FelcinWatch.app" | head -1)
+          VCOUNT=$(ls "$VWATCH"/AppIcon-*.png 2>/dev/null | wc -l | tr -d ' ')
+          echo "Icons in final IPA Watch bundle: $VCOUNT"
+          [ "$VCOUNT" -ge "6" ] || { echo "FATAL: Icons missing from final IPA"; rm -rf "$VERIFY" "$WORK"; exit 1; }
+          echo "=== Watch icon patch verified OK ==="
+          rm -rf "$VERIFY" "$WORK" "$PATCH"
 
     artifacts:
       - build/ios/ipa/*.ipa
