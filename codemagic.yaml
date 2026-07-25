@@ -428,44 +428,6 @@ workflows:
             MARKETING_VERSION=1.6 \
             CURRENT_PROJECT_VERSION=$BUILD_NUMBER
 
-          # Apple requires icons in a compiled asset catalog (.car), not raw PNGs.
-          # Generate source PNGs → compile with actool → write Assets.car into Watch bundle.
-          WATCH_APP=$(find "$ARCHIVE/Products" -name "FelcinWatch.app" -type d | head -1)
-          if [ -n "$WATCH_APP" ]; then
-            echo "Found Watch app at: $WATCH_APP"
-
-            # Generate PNGs with names matching Contents.json
-            ASSETS="ios-watch/Assets.xcassets/AppIcon.appiconset"
-            mkdir -p "$ASSETS"
-            for SIZE in 80 88 92 100 102 108; do
-              sips -z $SIZE $SIZE logo_ios_1024.png --out "$ASSETS/AppIcon-${SIZE}.png"
-            done
-            cp logo_ios_1024.png "$ASSETS/AppIcon-1024.png"
-            echo "Source icons: $(ls $ASSETS/*.png | wc -l) PNGs"
-
-            # Remove any stale .car so actool writes fresh
-            rm -f "$WATCH_APP/Assets.car"
-
-            # Compile asset catalog — outputs Assets.car directly into Watch bundle
-            xcrun actool ios-watch/Assets.xcassets \
-              --compile "$WATCH_APP" \
-              --platform watchos \
-              --minimum-deployment-target 9.0 \
-              --app-icon AppIcon \
-              --output-partial-info-plist /tmp/watch_icon_partial.plist \
-              2>&1 || echo "actool completed (warnings above are non-fatal)"
-
-            ls -la "$WATCH_APP/Assets.car" && echo "Assets.car compiled OK" || echo "WARNING: Assets.car missing"
-
-            # Set CFBundleIconName so watchOS maps the icon from the catalog
-            /usr/libexec/PlistBuddy -c "Delete :CFBundleIconName" "$WATCH_APP/Info.plist" 2>/dev/null || true
-            /usr/libexec/PlistBuddy -c "Add :CFBundleIconName string AppIcon" "$WATCH_APP/Info.plist"
-            echo "CFBundleIconName = $(/usr/libexec/PlistBuddy -c 'Print :CFBundleIconName' "$WATCH_APP/Info.plist")"
-          else
-            echo "ERROR: FelcinWatch.app not found in archive"
-            find "$ARCHIVE/Products" -maxdepth 6 -type d | head -30
-          fi
-
           xcodebuild -exportArchive \
             -archivePath "$ARCHIVE" \
             -exportPath "$IPA_DIR" \

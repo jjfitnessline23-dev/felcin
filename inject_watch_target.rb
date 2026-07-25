@@ -13,8 +13,7 @@ FileUtils.mkdir_p(DEST_DIR)
 Dir.glob("#{WATCH_SRC}/Sources/*.swift").each { |f| FileUtils.cp(f, DEST_DIR) }
 FileUtils.cp("#{WATCH_SRC}/Info.plist",               DEST_DIR)
 FileUtils.cp("#{WATCH_SRC}/FelcinWatch.entitlements",  DEST_DIR)
-FileUtils.cp_r("#{WATCH_SRC}/Assets.xcassets",         DEST_DIR)
-puts "Copied #{Dir.glob("#{DEST_DIR}/**/*").size} files to #{DEST_DIR}"
+puts "Copied #{Dir.glob("#{DEST_DIR}/*").size} files to #{DEST_DIR}"
 
 project = Xcodeproj::Project.open(PROJ_PATH)
 
@@ -48,54 +47,92 @@ watch_target = project.new_target(:application, WATCH_NAME, :watchos, '9.0')
 
 watch_target.build_configurations.each do |cfg|
   s = cfg.build_settings
-  s['PRODUCT_BUNDLE_IDENTIFIER']   = BUNDLE_ID
-  s['PRODUCT_NAME']                = WATCH_NAME
-  s['SDKROOT']                     = 'watchos'
-  s['WATCHOS_DEPLOYMENT_TARGET']   = '9.0'
-  s['SWIFT_VERSION']               = '5.0'
-  s['DEVELOPMENT_TEAM']            = TEAM_ID
-  s['CODE_SIGN_STYLE']             = 'Manual'
-  s['CODE_SIGN_IDENTITY']          = 'Apple Distribution'
-  s['CODE_SIGN_ENTITLEMENTS']      = "#{WATCH_NAME}/FelcinWatch.entitlements"
-  s['INFOPLIST_FILE']              = "#{WATCH_NAME}/Info.plist"
-  s['MARKETING_VERSION']           = '1.6'
-  s['TARGETED_DEVICE_FAMILY']      = '4'  # Apple Watch
-  s['ALWAYS_SEARCH_USER_PATHS']    = 'NO'
-  s['SWIFT_EMIT_LOC_STRINGS']      = 'YES'
-  # provisioning profile set via env var in codemagic.yaml
-  s['PROVISIONING_PROFILE_SPECIFIER']   = ENV.fetch('WATCH_PROFILE_UUID', '')
+  s['PRODUCT_BUNDLE_IDENTIFIER']        = BUNDLE_ID
+  s['PRODUCT_NAME']                     = WATCH_NAME
+  s['SDKROOT']                          = 'watchos'
+  s['WATCHOS_DEPLOYMENT_TARGET']        = '9.0'
+  s['SWIFT_VERSION']                    = '5.0'
+  s['DEVELOPMENT_TEAM']                 = TEAM_ID
+  s['CODE_SIGN_STYLE']                  = 'Manual'
+  s['CODE_SIGN_IDENTITY']               = 'Apple Distribution'
+  s['CODE_SIGN_ENTITLEMENTS']           = "#{WATCH_NAME}/FelcinWatch.entitlements"
+  s['INFOPLIST_FILE']                   = "#{WATCH_NAME}/Info.plist"
+  s['MARKETING_VERSION']                = '1.6'
+  s['TARGETED_DEVICE_FAMILY']           = '4'
+  s['ALWAYS_SEARCH_USER_PATHS']         = 'NO'
+  s['SWIFT_EMIT_LOC_STRINGS']           = 'YES'
+  s['GENERATE_INFOPLIST_FILE']          = 'NO'
   s['ASSETCATALOG_COMPILER_APPICON_NAME'] = 'AppIcon'
-  s['GENERATE_INFOPLIST_FILE']          = 'NO'  # use our custom Info.plist, not Xcode's auto-generated one
+  s['PROVISIONING_PROFILE_SPECIFIER']   = ENV.fetch('WATCH_PROFILE_UUID', '')
 end
-
-# Add Assets.xcassets
-assets_ref = watch_group.new_file('Assets.xcassets')
-assets_ref.source_tree = '<group>'
-assets_ref.last_known_file_type = 'folder.assetcatalog'
 
 # Add Swift files to Compile Sources
 swift_refs.each { |ref| watch_target.source_build_phase.add_file_reference(ref) }
 
-# Add asset catalog to Resources (create the phase if missing)
-res_phase = watch_target.resources_build_phase
-if res_phase.nil?
-  res_phase = project.new(Xcodeproj::Project::Object::PBXResourcesBuildPhase)
-  watch_target.build_phases << res_phase
-end
-res_phase.add_file_reference(assets_ref)
-puts "Asset catalog added to resources build phase"
+# Add a Script Build Phase that generates & compiles Watch icons during the Xcode build.
+# This runs as part of the Watch target's build, writing Assets.car into the built .app
+# before it gets archived — no post-archive injection needed.
+icon_script = project.new(Xcodeproj::Project::Object::PBXShellScriptBuildPhase)
+icon_script.name = 'Compile Watch App Icons'
+icon_script.shell_path = '/bin/bash'
+icon_script.show_env_vars_in_log = '0'
+icon_script.shell_script = <<~'BASH'
+  set -e
+  # logo_ios_1024.png is at repo root — 2 levels above ios/App/ (SRCROOT)
+  LOGO="${SRCROOT}/../../logo_ios_1024.png"
+  if [ ! -f "$LOGO" ]; then
+    echo "warning: logo_ios_1024.png not found at $LOGO — Watch icons skipped"
+    exit 0
+  fi
+
+  TMPCAT=$(mktemp -d)
+  trap "rm -rf '$TMPCAT'" EXIT
+  ICONSET="$TMPCAT/AppIcon.appiconset"
+  mkdir -p "$ICONSET"
+
+  # Root Contents.json required for actool to recognise the catalog
+  printf '{"info":{"author":"xcode","version":1}}' > "$TMPCAT/Contents.json"
+
+  # Icon set Contents.json — all required watchOS sizes
+  cat > "$ICONSET/Contents.json" << 'EOF'
+  {"images":[{"filename":"i80.png","idiom":"watch","role":"appLauncher","scale":"2x","size":"80x80","subtype":"38mm"},{"filename":"i88.png","idiom":"watch","role":"appLauncher","scale":"2x","size":"88x88","subtype":"40mm"},{"filename":"i92.png","idiom":"watch","role":"appLauncher","scale":"2x","size":"92x92","subtype":"41mm"},{"filename":"i100.png","idiom":"watch","role":"appLauncher","scale":"2x","size":"100x100","subtype":"44mm"},{"filename":"i102.png","idiom":"watch","role":"appLauncher","scale":"2x","size":"102x102","subtype":"45mm"},{"filename":"i108.png","idiom":"watch","role":"appLauncher","scale":"2x","size":"108x108","subtype":"49mm"},{"filename":"i1024.png","idiom":"watch-marketing","scale":"1x","size":"1024x1024"}],"info":{"author":"xcode","version":1}}
+EOF
+
+  # Resize logo into each required size
+  for SIZE in 80 88 92 100 102 108; do
+    sips -z $SIZE $SIZE "$LOGO" --out "$ICONSET/i${SIZE}.png" > /dev/null 2>&1
+  done
+  cp "$LOGO" "$ICONSET/i1024.png"
+
+  # Compile asset catalog — writes Assets.car into the built Watch app bundle
+  BUNDLE_DIR="${BUILT_PRODUCTS_DIR}/${PRODUCT_NAME}.app"
+  rm -f "${BUNDLE_DIR}/Assets.car"
+  xcrun actool "$TMPCAT" \
+    --compile "$BUNDLE_DIR" \
+    --platform watchos \
+    --minimum-deployment-target 9.0 \
+    --target-device watch \
+    --app-icon AppIcon \
+    --output-partial-info-plist /dev/null \
+    2>&1 || true
+
+  echo "Watch icon Assets.car compiled into ${BUNDLE_DIR}"
+BASH
+
+# Append icon script phase after Compile Sources
+watch_target.build_phases << icon_script
+puts "Icon script build phase added"
 
 # Make iPhone app depend on Watch app (embeds it)
 main_target = project.targets.find { |t| t.name == 'App' }
 if main_target
   main_target.add_dependency(watch_target)
 
-  # Embed Watch app in iPhone app
   embed_phase = main_target.build_phases.find { |p| p.is_a?(Xcodeproj::Project::Object::PBXCopyFilesBuildPhase) && p.name == 'Embed Watch Content' }
   unless embed_phase
     embed_phase = project.new(Xcodeproj::Project::Object::PBXCopyFilesBuildPhase)
     embed_phase.name = 'Embed Watch Content'
-    embed_phase.dst_subfolder_spec = '16'  # Watch app subfolder
+    embed_phase.dst_subfolder_spec = '16'
     embed_phase.dst_path = '$(CONTENTS_FOLDER_PATH)/Watch'
     main_target.build_phases << embed_phase
   end
