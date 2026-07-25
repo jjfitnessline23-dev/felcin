@@ -474,8 +474,19 @@ workflows:
           cp "$LOGO" "$ICONSET/i1024.png"
           xcrun actool "$XCASSETS" --compile "$WATCH_APP" --platform watchos --minimum-deployment-target 9.0 --target-device watch --app-icon AppIcon --output-partial-info-plist "$WORK/partial.plist" 2>&1 || echo "actool exit $? (non-fatal)"
           echo "Assets.car: $(ls -lah "$WATCH_APP/Assets.car" 2>/dev/null || echo MISSING)"
-          security cms -D -i /tmp/watch_profile.mobileprovision -o "$WORK/wdec.plist" 2>/dev/null
-          /usr/libexec/PlistBuddy -x -c "Print :Entitlements" "$WORK/wdec.plist" > "$WORK/watch_ents.plist" 2>/dev/null
+          WATCH_PLIST="$WATCH_APP/Info.plist"
+          echo "--- Watch plist CFBundleIconFiles before patch ---"
+          /usr/libexec/PlistBuddy -c "Print :CFBundleIcons:CFBundlePrimaryIcon:CFBundleIconFiles" "$WATCH_PLIST" 2>/dev/null || echo "NOT PRESENT (will add)"
+          /usr/libexec/PlistBuddy -c "Delete :CFBundleIcons" "$WATCH_PLIST" 2>/dev/null || true
+          /usr/libexec/PlistBuddy -c "Add :CFBundleIcons dict" "$WATCH_PLIST"
+          /usr/libexec/PlistBuddy -c "Add :CFBundleIcons:CFBundlePrimaryIcon dict" "$WATCH_PLIST"
+          /usr/libexec/PlistBuddy -c "Add :CFBundleIcons:CFBundlePrimaryIcon:CFBundleIconName string AppIcon" "$WATCH_PLIST"
+          /usr/libexec/PlistBuddy -c "Add :CFBundleIcons:CFBundlePrimaryIcon:CFBundleIconFiles array" "$WATCH_PLIST"
+          for INAME in AppIcon-80 AppIcon-88 AppIcon-92 AppIcon-100 AppIcon-102 AppIcon-108 AppIcon-1024; do
+            /usr/libexec/PlistBuddy -c "Add :CFBundleIcons:CFBundlePrimaryIcon:CFBundleIconFiles: string $INAME" "$WATCH_PLIST"
+          done
+          echo "--- Watch plist CFBundleIconFiles after patch ---"
+          /usr/libexec/PlistBuddy -c "Print :CFBundleIcons:CFBundlePrimaryIcon:CFBundleIconFiles" "$WATCH_PLIST"
           echo "Re-signing Watch app (entitlements from Watch provisioning profile)..."
           security cms -D -i "$WATCH_APP/embedded.mobileprovision" -o "$WORK/wdec.plist" 2>/dev/null
           /usr/libexec/PlistBuddy -x -c "Print :Entitlements" "$WORK/wdec.plist" > "$WORK/watch_ents.plist" 2>/dev/null
