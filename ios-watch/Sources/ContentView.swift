@@ -9,35 +9,51 @@ struct ContentView: View {
         } else if manager.isRunning || manager.isPaused {
             WorkoutView()
         } else {
-            StartView()
+            ActivityPickerView()
         }
     }
 }
 
-struct StartView: View {
+struct ActivityPickerView: View {
     @EnvironmentObject var manager: WorkoutManager
 
     var body: some View {
-        VStack(spacing: 14) {
-            Image(systemName: "figure.run")
-                .font(.system(size: 40))
-                .foregroundColor(.green)
-
-            Text("Felcin Run")
-                .font(.headline)
-                .foregroundColor(.white)
-
-            Button(action: manager.startWorkout) {
-                Text("Start")
+        ScrollView {
+            VStack(spacing: 10) {
+                Text("Felcin")
                     .font(.headline)
-                    .foregroundColor(.black)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 10)
-                    .background(Color.green)
-                    .cornerRadius(8)
+                    .foregroundColor(.white)
+                    .padding(.bottom, 2)
+
+                ForEach(ActivityType.allCases, id: \.self) { type in
+                    Button(action: { manager.startWorkout(type: type) }) {
+                        HStack(spacing: 12) {
+                            Image(systemName: type.systemIcon)
+                                .font(.system(size: 20))
+                                .foregroundColor(iconColor(type))
+                                .frame(width: 28)
+                            Text(type.rawValue)
+                                .font(.headline)
+                                .foregroundColor(.white)
+                            Spacer()
+                        }
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 12)
+                        .background(Color.white.opacity(0.08))
+                        .cornerRadius(12)
+                    }
+                    .buttonStyle(.plain)
+                }
             }
-            .buttonStyle(.plain)
+            .padding()
         }
-        .padding()
+    }
+
+    private func iconColor(_ type: ActivityType) -> Color {
+        switch type {
+        case .run:   return .green
+        case .cycle: return .blue
+        case .steps: return .orange
+        }
     }
 }
