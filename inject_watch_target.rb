@@ -65,6 +65,7 @@ watch_target.build_configurations.each do |cfg|
   # provisioning profile set via env var in codemagic.yaml
   s['PROVISIONING_PROFILE_SPECIFIER']   = ENV.fetch('WATCH_PROFILE_UUID', '')
   s['ASSETCATALOG_COMPILER_APPICON_NAME'] = 'AppIcon'
+  s['GENERATE_INFOPLIST_FILE']          = 'NO'  # use our custom Info.plist, not Xcode's auto-generated one
 end
 
 # Add Assets.xcassets

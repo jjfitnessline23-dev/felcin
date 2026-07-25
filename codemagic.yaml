@@ -429,11 +429,11 @@ workflows:
             CURRENT_PROJECT_VERSION=$BUILD_NUMBER
 
           # Inject icon PNGs directly into the Watch app bundle inside the archive.
-          # The xcodeproj asset-catalog approach didn't survive Xcode's build system,
-          # so we skip it and write the files after xcodebuild, before exportArchive
-          # re-signs everything with the correct provisioning profiles.
-          WATCH_APP="$ARCHIVE/Products/Applications/App.app/Watch/FelcinWatch.app"
-          if [ -d "$WATCH_APP" ]; then
+          # Use find so the path works regardless of exact archive layout.
+          WATCH_APP=$(find "$ARCHIVE/Products" -name "FelcinWatch.app" -type d | head -1)
+          echo "Archive contents:"; find "$ARCHIVE/Products" -maxdepth 5 -type d | head -30
+          if [ -n "$WATCH_APP" ]; then
+            echo "Found Watch app at: $WATCH_APP"
             for SIZE in 80 88 92 100 102 108; do
               sips -z $SIZE $SIZE logo_ios_1024.png --out "$WATCH_APP/AppIcon${SIZE}.png"
             done
@@ -442,10 +442,12 @@ workflows:
             for SIZE in 80 88 92 100 102 108; do
               /usr/libexec/PlistBuddy -c "Add :CFBundleIconFiles: string AppIcon${SIZE}" "$WATCH_APP/Info.plist"
             done
-            echo "Watch icons injected: $(ls $WATCH_APP/AppIcon*.png | wc -l) PNGs, CFBundleIconFiles set"
+            /usr/libexec/PlistBuddy -c "Delete :CFBundleIconName" "$WATCH_APP/Info.plist" 2>/dev/null || true
+            /usr/libexec/PlistBuddy -c "Add :CFBundleIconName string AppIcon" "$WATCH_APP/Info.plist"
+            echo "Watch icons injected: $(ls $WATCH_APP/AppIcon*.png | wc -l) PNGs"
+            echo "Watch Info.plist icon keys:"; /usr/libexec/PlistBuddy -c "Print :CFBundleIconFiles" "$WATCH_APP/Info.plist"; /usr/libexec/PlistBuddy -c "Print :CFBundleIconName" "$WATCH_APP/Info.plist"
           else
-            echo "WARNING: Watch app not found at $WATCH_APP"
-            ls "$ARCHIVE/Products/Applications/App.app/" || true
+            echo "ERROR: FelcinWatch.app not found in archive"
           fi
 
           xcodebuild -exportArchive \
