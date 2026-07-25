@@ -25,6 +25,8 @@
     <string>Felcin reads your heart rate, distance, and workout data to display your run stats.</string>
     <key>NSHealthUpdateUsageDescription</key>
     <string>Felcin saves your running workouts to Apple Health.</string>
+    <key>CFBundleIconName</key>
+    <string>AppIcon</string>
     <key>WKApplication</key>
     <true/>
     <key>MinimumOSVersion</key>

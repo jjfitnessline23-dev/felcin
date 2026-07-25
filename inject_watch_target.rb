@@ -11,9 +11,10 @@ DEST_DIR   = "ios/App/#{WATCH_NAME}"
 # Copy source files into the Xcode project tree
 FileUtils.mkdir_p(DEST_DIR)
 Dir.glob("#{WATCH_SRC}/Sources/*.swift").each { |f| FileUtils.cp(f, DEST_DIR) }
-FileUtils.cp("#{WATCH_SRC}/Info.plist",              DEST_DIR)
-FileUtils.cp("#{WATCH_SRC}/FelcinWatch.entitlements", DEST_DIR)
-puts "Copied #{Dir.glob("#{DEST_DIR}/*").size} files to #{DEST_DIR}"
+FileUtils.cp("#{WATCH_SRC}/Info.plist",               DEST_DIR)
+FileUtils.cp("#{WATCH_SRC}/FelcinWatch.entitlements",  DEST_DIR)
+FileUtils.cp_r("#{WATCH_SRC}/Assets.xcassets",         DEST_DIR)
+puts "Copied #{Dir.glob("#{DEST_DIR}/**/*").size} files to #{DEST_DIR}"
 
 project = Xcodeproj::Project.open(PROJ_PATH)
 
@@ -62,11 +63,20 @@ watch_target.build_configurations.each do |cfg|
   s['ALWAYS_SEARCH_USER_PATHS']    = 'NO'
   s['SWIFT_EMIT_LOC_STRINGS']      = 'YES'
   # provisioning profile set via env var in codemagic.yaml
-  s['PROVISIONING_PROFILE_SPECIFIER'] = ENV.fetch('WATCH_PROFILE_UUID', '')
+  s['PROVISIONING_PROFILE_SPECIFIER']   = ENV.fetch('WATCH_PROFILE_UUID', '')
+  s['ASSETCATALOG_COMPILER_APPICON_NAME'] = 'AppIcon'
 end
+
+# Add Assets.xcassets
+assets_ref = watch_group.new_file('Assets.xcassets')
+assets_ref.source_tree = '<group>'
+assets_ref.last_known_file_type = 'folder.assetcatalog'
 
 # Add Swift files to Compile Sources
 swift_refs.each { |ref| watch_target.source_build_phase.add_file_reference(ref) }
+
+# Add asset catalog to Resources
+watch_target.resources_build_phase.add_file_reference(assets_ref)
 
 # Make iPhone app depend on Watch app (embeds it)
 main_target = project.targets.find { |t| t.name == 'App' }
