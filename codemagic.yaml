@@ -348,20 +348,6 @@ workflows:
           rm -f Podfile.lock
           pod install --repo-update
 
-      - name: Generate Watch app icons
-        script: |
-          set -e
-          LOGO="ios-icons/AppIcon-1024@1x.png"
-          ICONSET="ios-watch/Assets.xcassets/AppIcon.appiconset"
-          [ -f "$LOGO" ] || { echo "ERROR: logo not found"; exit 1; }
-          for SIZE in 80 88 92 100 102 108; do
-            sips -z $SIZE $SIZE "$LOGO" --out "$ICONSET/AppIcon-${SIZE}.png"
-          done
-          cp "$LOGO" "$ICONSET/AppIcon-1024.png"
-          COUNT=$(ls "$ICONSET"/*.png | wc -l | tr -d ' ')
-          echo "Generated $COUNT Watch icon PNGs"
-          [ "$COUNT" = "7" ] || { echo "ERROR: expected 7 PNGs, got $COUNT"; exit 1; }
-
       - name: Inject Watch app target
         script: |
           gem install xcodeproj --quiet 2>/dev/null || true
