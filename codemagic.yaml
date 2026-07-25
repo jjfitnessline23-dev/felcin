@@ -348,18 +348,6 @@ workflows:
           rm -f Podfile.lock
           pod install --repo-update
 
-      - name: Generate Watch app icons
-        script: |
-          ASSETS="ios-watch/Assets.xcassets/AppIcon.appiconset"
-          mkdir -p "$ASSETS"
-          for SIZE in 80 88 92 100 102 108; do
-            sips -z $SIZE $SIZE logo_ios_1024.png --out "$ASSETS/AppIcon-${SIZE}.png"
-          done
-          cp logo_ios_1024.png "$ASSETS/AppIcon-1024.png"
-          echo "Watch icons generated:"
-          ls -la ios-watch/Assets.xcassets/
-          ls -la "$ASSETS/"
-
       - name: Inject Watch app target
         script: |
           gem install xcodeproj --quiet 2>/dev/null || true
@@ -439,6 +427,26 @@ workflows:
             CODE_SIGN_IDENTITY="Apple Distribution" \
             MARKETING_VERSION=1.6 \
             CURRENT_PROJECT_VERSION=$BUILD_NUMBER
+
+          # Inject icon PNGs directly into the Watch app bundle inside the archive.
+          # The xcodeproj asset-catalog approach didn't survive Xcode's build system,
+          # so we skip it and write the files after xcodebuild, before exportArchive
+          # re-signs everything with the correct provisioning profiles.
+          WATCH_APP="$ARCHIVE/Products/Applications/App.app/Watch/FelcinWatch.app"
+          if [ -d "$WATCH_APP" ]; then
+            for SIZE in 80 88 92 100 102 108; do
+              sips -z $SIZE $SIZE logo_ios_1024.png --out "$WATCH_APP/AppIcon${SIZE}.png"
+            done
+            /usr/libexec/PlistBuddy -c "Delete :CFBundleIconFiles" "$WATCH_APP/Info.plist" 2>/dev/null || true
+            /usr/libexec/PlistBuddy -c "Add :CFBundleIconFiles array" "$WATCH_APP/Info.plist"
+            for SIZE in 80 88 92 100 102 108; do
+              /usr/libexec/PlistBuddy -c "Add :CFBundleIconFiles: string AppIcon${SIZE}" "$WATCH_APP/Info.plist"
+            done
+            echo "Watch icons injected: $(ls $WATCH_APP/AppIcon*.png | wc -l) PNGs, CFBundleIconFiles set"
+          else
+            echo "WARNING: Watch app not found at $WATCH_APP"
+            ls "$ARCHIVE/Products/Applications/App.app/" || true
+          fi
 
           xcodebuild -exportArchive \
             -archivePath "$ARCHIVE" \
