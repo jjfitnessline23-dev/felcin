@@ -12,7 +12,8 @@ FileUtils.mkdir_p(DEST_DIR)
 Dir.glob("#{WATCH_SRC}/Sources/*.swift").each { |f| FileUtils.cp(f, DEST_DIR) }
 FileUtils.cp("#{WATCH_SRC}/Info.plist",              DEST_DIR)
 FileUtils.cp("#{WATCH_SRC}/FelcinWatch.entitlements", DEST_DIR)
-puts "Copied #{Dir.glob("#{DEST_DIR}/*").size} files to #{DEST_DIR}"
+FileUtils.cp_r("#{WATCH_SRC}/Assets.xcassets",       DEST_DIR)
+puts "Copied #{Dir.glob("#{DEST_DIR}/**/*").size} files to #{DEST_DIR}"
 
 project = Xcodeproj::Project.open(PROJ_PATH)
 
@@ -36,29 +37,35 @@ ent_ref = watch_group.new_file('FelcinWatch.entitlements')
 ent_ref.source_tree = '<group>'
 ent_ref.last_known_file_type = 'text.plist.entitlements'
 
+assets_ref = watch_group.new_file('Assets.xcassets')
+assets_ref.source_tree = '<group>'
+assets_ref.last_known_file_type = 'folder.assetcatalog'
+
 watch_target = project.new_target(:application, WATCH_NAME, :watchos, '9.0')
 
 watch_target.build_configurations.each do |cfg|
   s = cfg.build_settings
-  s['PRODUCT_BUNDLE_IDENTIFIER']      = BUNDLE_ID
-  s['PRODUCT_NAME']                   = WATCH_NAME
-  s['SDKROOT']                        = 'watchos'
-  s['WATCHOS_DEPLOYMENT_TARGET']      = '9.0'
-  s['SWIFT_VERSION']                  = '5.0'
-  s['DEVELOPMENT_TEAM']               = TEAM_ID
-  s['CODE_SIGN_STYLE']                = 'Manual'
-  s['CODE_SIGN_IDENTITY']             = 'Apple Distribution'
-  s['CODE_SIGN_ENTITLEMENTS']         = "#{WATCH_NAME}/FelcinWatch.entitlements"
-  s['INFOPLIST_FILE']                 = "#{WATCH_NAME}/Info.plist"
-  s['MARKETING_VERSION']              = '1.6'
-  s['TARGETED_DEVICE_FAMILY']         = '4'
-  s['ALWAYS_SEARCH_USER_PATHS']       = 'NO'
-  s['SWIFT_EMIT_LOC_STRINGS']         = 'YES'
-  s['GENERATE_INFOPLIST_FILE']        = 'NO'
-  s['PROVISIONING_PROFILE_SPECIFIER'] = ENV.fetch('WATCH_PROFILE_UUID', '')
+  s['PRODUCT_BUNDLE_IDENTIFIER']          = BUNDLE_ID
+  s['PRODUCT_NAME']                       = WATCH_NAME
+  s['SDKROOT']                            = 'watchos'
+  s['WATCHOS_DEPLOYMENT_TARGET']          = '9.0'
+  s['SWIFT_VERSION']                      = '5.0'
+  s['DEVELOPMENT_TEAM']                   = TEAM_ID
+  s['CODE_SIGN_STYLE']                    = 'Manual'
+  s['CODE_SIGN_IDENTITY']                 = 'Apple Distribution'
+  s['CODE_SIGN_ENTITLEMENTS']             = "#{WATCH_NAME}/FelcinWatch.entitlements"
+  s['INFOPLIST_FILE']                     = "#{WATCH_NAME}/Info.plist"
+  s['MARKETING_VERSION']                  = '1.6'
+  s['TARGETED_DEVICE_FAMILY']             = '4'
+  s['ALWAYS_SEARCH_USER_PATHS']           = 'NO'
+  s['SWIFT_EMIT_LOC_STRINGS']             = 'YES'
+  s['GENERATE_INFOPLIST_FILE']            = 'NO'
+  s['PROVISIONING_PROFILE_SPECIFIER']     = ENV.fetch('WATCH_PROFILE_UUID', '')
+  s['ASSETCATALOG_COMPILER_APPICON_NAME'] = 'AppIcon'
 end
 
 swift_refs.each { |ref| watch_target.source_build_phase.add_file_reference(ref) }
+watch_target.resources_build_phase.add_file_reference(assets_ref)
 
 main_target = project.targets.find { |t| t.name == 'App' }
 if main_target
