@@ -44,8 +44,7 @@
       "backgroundColor": "#000000"
     },
     "Keyboard": {
-      "resize": "body",
-      "resizeOnFullScreen": true
+      "resize": "none"
     },
     "Camera": {
       "presentationStyle": "popover"

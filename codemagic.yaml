@@ -212,6 +212,7 @@ workflows:
           plist['NSMicrophoneUsageDescription'] = 'Felcin needs microphone access to record audio for videos.'
           plist['NSPhotoLibraryUsageDescription'] = 'Felcin needs photo library access to share photos and videos.'
           plist['NSPhotoLibraryAddUsageDescription'] = 'Felcin needs permission to save photos and videos to your library.'
+          plist['NSHealthShareUsageDescription'] = 'Felcin reads your step count to show daily activity and track your fitness progress.'
           plist['ITSAppUsesNonExemptEncryption'] = False
 
           with open(plist_path, 'wb') as f:
@@ -243,8 +244,11 @@ workflows:
           import Capacitor
           import WebKit
           import Network
+          import HealthKit
 
-          class ViewController: CAPBridgeViewController {
+          class ViewController: CAPBridgeViewController, WKScriptMessageHandler {
+              private let healthStore = HKHealthStore()
+
               override func viewDidLoad() {
                   super.viewDidLoad()
                   self.view.backgroundColor = UIColor.black
@@ -252,16 +256,12 @@ workflows:
                   self.webView?.backgroundColor = UIColor.black
                   self.webView?.scrollView.backgroundColor = UIColor.black
 
-                  // Synchronous check immediately after bridge init so we redirect
-                  // before WKWebView has a chance to show a network error page.
                   if !isConnectedSync() {
                       webView?.stopLoading()
                       webView?.load(URLRequest(url: URL(string: "felcin://localhost/")!))
                   }
               }
 
-              // Blocks main thread for up to 300ms (typically < 5ms on device).
-              // Must be synchronous so the redirect fires before any error UI appears.
               private func isConnectedSync() -> Bool {
                   let monitor = NWPathMonitor()
                   var connected = true
@@ -280,6 +280,105 @@ workflows:
                   self.webView?.isOpaque = false
                   self.webView?.backgroundColor = UIColor.black
                   self.webView?.scrollView.backgroundColor = UIColor.black
+
+                  // Inject window.HealthKit JS bridge
+                  webView?.configuration.userContentController.add(self, name: "healthkit")
+                  let bridgeScript = """
+                  window.HealthKit = {
+                    _cbs: {},
+                    _call: function(action, payload) {
+                      return new Promise(function(resolve) {
+                        var id = action + '_' + Date.now() + '_' + Math.random();
+                        window.HealthKit._cbs[id] = resolve;
+                        window.webkit.messageHandlers.healthkit.postMessage(
+                          Object.assign({ action: action, callbackId: id }, payload || {})
+                        );
+                      });
+                    },
+                    requestAuthorization: function() { return window.HealthKit._call('requestAuthorization'); },
+                    getSteps: function() { return window.HealthKit._call('getSteps'); },
+                    getWeeklySteps: function() { return window.HealthKit._call('getWeeklySteps'); },
+                    _resolve: function(id, data) {
+                      if (window.HealthKit._cbs[id]) {
+                        window.HealthKit._cbs[id](data);
+                        delete window.HealthKit._cbs[id];
+                      }
+                    }
+                  };
+                  """
+                  let script = WKUserScript(source: bridgeScript, injectionTime: .atDocumentStart, forMainFrameOnly: false)
+                  webView?.configuration.userContentController.addUserScript(script)
+              }
+
+              // WKScriptMessageHandler — receives calls from window.HealthKit
+              public func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
+                  guard message.name == "healthkit",
+                        let body = message.body as? [String: Any],
+                        let action = body["action"] as? String,
+                        let cbId = body["callbackId"] as? String else { return }
+                  switch action {
+                  case "requestAuthorization": hkRequestAuth(cbId: cbId)
+                  case "getSteps":             hkGetSteps(cbId: cbId)
+                  case "getWeeklySteps":       hkGetWeeklySteps(cbId: cbId)
+                  default: break
+                  }
+              }
+
+              private func jsResolve(cbId: String, json: String) {
+                  DispatchQueue.main.async {
+                      let safe = cbId.replacingOccurrences(of: "'", with: "\\'")
+                      self.webView?.evaluateJavaScript("window.HealthKit._resolve('\(safe)',\(json))")
+                  }
+              }
+
+              private func hkRequestAuth(cbId: String) {
+                  guard HKHealthStore.isHealthDataAvailable(),
+                        let stepType = HKQuantityType.quantityType(forIdentifier: .stepCount) else {
+                      jsResolve(cbId: cbId, json: "{\"granted\":false}"); return
+                  }
+                  healthStore.requestAuthorization(toShare: nil, read: [stepType]) { [weak self] ok, _ in
+                      self?.jsResolve(cbId: cbId, json: "{\"granted\":\(ok ? "true" : "false")}")
+                  }
+              }
+
+              private func hkGetSteps(cbId: String) {
+                  guard HKHealthStore.isHealthDataAvailable(),
+                        let stepType = HKQuantityType.quantityType(forIdentifier: .stepCount) else {
+                      jsResolve(cbId: cbId, json: "{\"steps\":0}"); return
+                  }
+                  let start = Calendar.current.startOfDay(for: Date())
+                  let pred = HKQuery.predicateForSamples(withStart: start, end: Date(), options: .strictStartDate)
+                  let q = HKStatisticsQuery(quantityType: stepType, quantitySamplePredicate: pred, options: .cumulativeSum) { [weak self] _, result, _ in
+                      let steps = Int(result?.sumQuantity()?.doubleValue(for: HKUnit.count()) ?? 0)
+                      self?.jsResolve(cbId: cbId, json: "{\"steps\":\(steps)}")
+                  }
+                  healthStore.execute(q)
+              }
+
+              private func hkGetWeeklySteps(cbId: String) {
+                  guard HKHealthStore.isHealthDataAvailable(),
+                        let stepType = HKQuantityType.quantityType(forIdentifier: .stepCount) else {
+                      jsResolve(cbId: cbId, json: "{\"days\":[]}"); return
+                  }
+                  let cal = Calendar.current
+                  let today = cal.startOfDay(for: Date())
+                  let weekAgo = cal.date(byAdding: .day, value: -6, to: today)!
+                  let pred = HKQuery.predicateForSamples(withStart: weekAgo, end: Date(), options: .strictStartDate)
+                  let q = HKStatisticsCollectionQuery(
+                      quantityType: stepType, quantitySamplePredicate: pred,
+                      options: .cumulativeSum, anchorDate: today,
+                      intervalComponents: DateComponents(day: 1)
+                  )
+                  q.initialResultsHandler = { [weak self] _, results, _ in
+                      var arr: [String] = []
+                      let fmt = DateFormatter(); fmt.dateFormat = "yyyy-MM-dd"
+                      results?.enumerateStatistics(from: weekAgo, to: Date()) { stat, _ in
+                          let s = Int(stat.sumQuantity()?.doubleValue(for: HKUnit.count()) ?? 0)
+                          arr.append("{\"date\":\"\(fmt.string(from: stat.startDate))\",\"steps\":\(s)}")
+                      }
+                      self?.jsResolve(cbId: cbId, json: "{\"days\":[\(arr.joined(separator: ","))]}")
+                  }
+                  healthStore.execute(q)
               }
 
               @available(iOS 15.0, *)
@@ -331,6 +430,10 @@ workflows:
                   <string>applinks:felcin.com</string>
                   <string>applinks:www.felcin.com</string>
               </array>
+              <key>com.apple.developer.healthkit</key>
+              <true/>
+              <key>com.apple.developer.healthkit.access</key>
+              <array><string>health-records</string></array>
           </dict></plist>""".strip())
           PYEOF
 
