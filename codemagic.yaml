@@ -32,6 +32,8 @@ workflows:
           config['server'] = {'url': 'https://www.felcin.com', 'cleartext': False}
           config['webDir'] = 'www'
           config.setdefault('ios', {})
+          config.setdefault('plugins', {})
+          config['plugins']['Keyboard'] = {'resize': 'body', 'resizeOnFullScreen': True, 'style': 'dark'}
           with open('capacitor.config.json', 'w') as f:
               json.dump(config, f, indent=2)
           print('Mode: hybrid (live URL + embedded bundle)')
@@ -40,6 +42,7 @@ workflows:
       - name: Install dependencies
         script: |
           npm install --legacy-peer-deps
+          npm install @capacitor/keyboard --legacy-peer-deps
           npm install -g @capacitor/cli
 
       - name: Build felcin-next static bundle
@@ -485,6 +488,7 @@ workflows:
       - name: Install dependencies
         script: |
           npm install --legacy-peer-deps
+          npm install @capacitor/keyboard --legacy-peer-deps
           npm install -g @capacitor/cli
 
       - name: Build felcin-next static bundle
