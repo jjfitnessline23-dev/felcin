@@ -33,7 +33,7 @@ workflows:
           config['webDir'] = 'www'
           config.setdefault('ios', {})
           config.setdefault('plugins', {})
-          config['plugins']['Keyboard'] = {'resize': 'body', 'resizeOnFullScreen': True, 'style': 'dark'}
+          config['plugins']['Keyboard'] = {'resize': 'native', 'resizeOnFullScreen': True, 'style': 'dark'}
           with open('capacitor.config.json', 'w') as f:
               json.dump(config, f, indent=2)
           print('Mode: hybrid (live URL + embedded bundle)')
