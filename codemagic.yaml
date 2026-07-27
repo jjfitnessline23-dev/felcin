@@ -210,7 +210,9 @@ workflows:
           plist['CFBundleURLTypes'] = url_types
 
           plist['NSLocationWhenInUseUsageDescription'] = 'Felcin uses your location to track your running routes live on the map and save your PRs.'
-          plist['NSLocationAlwaysAndWhenInUseUsageDescription'] = 'Felcin uses your location to track running routes and show your position on the map.'
+          plist['NSLocationAlwaysAndWhenInUseUsageDescription'] = 'Felcin tracks your location in the background so your run continues when the screen locks.'
+          plist['NSLocationAlwaysUsageDescription'] = 'Felcin tracks your location in the background so your run continues when the screen locks.'
+          plist['UIBackgroundModes'] = ['location']
           plist['NSCameraUsageDescription'] = 'Felcin needs camera access to take photos and videos for posts and stories.'
           plist['NSMicrophoneUsageDescription'] = 'Felcin needs microphone access to record audio for videos.'
           plist['NSPhotoLibraryUsageDescription'] = 'Felcin needs photo library access to share photos and videos.'
