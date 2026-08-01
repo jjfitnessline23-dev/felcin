@@ -32,5 +32,7 @@
     <true/>
     <key>MinimumOSVersion</key>
     <string>9.0</string>
+    <key>WATCH_SYNC_SECRET</key>
+    <string>$(WATCH_SYNC_SECRET)</string>
 </dict>
 </plist>

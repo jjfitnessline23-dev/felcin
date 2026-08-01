@@ -119,11 +119,65 @@ class WorkoutManager: NSObject, ObservableObject {
     func endWorkout() {
         session?.end(); timer?.cancel()
         locationManager.stopUpdatingLocation(); pedometer.stopUpdates()
-        builder?.endCollection(withEnd: Date()) { _, _ in
+        let endTime = Date()
+        builder?.endCollection(withEnd: endTime) { _, _ in
             self.builder?.finishWorkout { _, _ in
-                DispatchQueue.main.async { self.isRunning = false; self.showingSummary = true }
+                DispatchQueue.main.async {
+                    self.isRunning = false
+                    self.showingSummary = true
+                    self.syncToFelcin()
+                }
             }
         }
+    }
+
+    func syncToFelcin() {
+        guard distance > 50 else { return } // ignore very short workouts
+        let uid = UserDefaults.standard.string(forKey: "felcin_uid") ?? ""
+        guard !uid.isEmpty else { return }
+
+        let secret = Bundle.main.object(forInfoDictionaryKey: "WATCH_SYNC_SECRET") as? String ?? ""
+        let apiUrl = "https://www.felcin.com/api/save-watch-run"
+
+        let day = Calendar.current.weekdaySymbols[Calendar.current.component(.weekday, from: Date()) - 1]
+        let actType = activityType == .cycle ? "cycle" : "run"
+        let runName = "\(day.prefix(3)) \(actType.capitalized)"
+
+        let coordArray = coordinates.map { ["lat": $0.latitude, "lng": $0.longitude] }
+
+        let body: [String: Any] = [
+            "uid":          uid,
+            "secret":       secret,
+            "distance":     distance,
+            "duration":     elapsedTime,
+            "avgPace":      pace,
+            "name":         runName,
+            "coordinates":  coordArray,
+            "activityType": actType,
+            "calories":     calories,
+            "heartRate":    heartRate,
+        ]
+
+        guard let url = URL(string: apiUrl),
+              let data = try? JSONSerialization.data(withJSONObject: body) else { return }
+
+        var req = URLRequest(url: url)
+        req.httpMethod = "POST"
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.httpBody = data
+        req.timeoutInterval = 30
+
+        URLSession.shared.dataTask(with: req) { data, response, error in
+            if let data = data, let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                let isDistPR = json["isDistancePR"] as? Bool ?? false
+                let isPacePR = json["isPacePR"] as? Bool ?? false
+                if isDistPR || isPacePR {
+                    DispatchQueue.main.async {
+                        UserDefaults.standard.set(true, forKey: "felcin_new_pr")
+                    }
+                }
+            }
+        }.resume()
     }
 
     func resetWorkout() {
