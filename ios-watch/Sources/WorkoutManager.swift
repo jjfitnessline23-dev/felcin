@@ -4,6 +4,7 @@ import Combine
 import CoreLocation
 import CoreMotion
 import MapKit
+import WatchConnectivity
 
 enum ActivityType: String, CaseIterable {
     case run   = "Run"
@@ -53,6 +54,13 @@ class WorkoutManager: NSObject, ObservableObject {
     var pausedTime: TimeInterval = 0
     private let locationManager = CLLocationManager()
     private let pedometer       = CMPedometer()
+
+    func activateWatchConnectivity() {
+        if WCSession.isSupported() {
+            WCSession.default.delegate = self
+            WCSession.default.activate()
+        }
+    }
 
     func requestAuthorization() {
         let share: Set = [HKQuantityType.workoutType()]
@@ -241,6 +249,22 @@ extension WorkoutManager: HKLiveWorkoutBuilderDelegate {
                 self.speed = mps; self.pace = mps > 0 ? 1000.0 / mps : 0
             default: break
             }
+        }
+    }
+}
+
+extension WorkoutManager: WCSessionDelegate {
+    func session(_ session: WCSession, activationDidCompleteWith activationState: WCSessionActivationState, error: Error?) {}
+
+    func session(_ session: WCSession, didReceiveMessage message: [String: Any]) {
+        if let uid = message["felcin_uid"] as? String, !uid.isEmpty {
+            UserDefaults.standard.set(uid, forKey: "felcin_uid")
+        }
+    }
+
+    func session(_ session: WCSession, didReceiveApplicationContext applicationContext: [String: Any]) {
+        if let uid = applicationContext["felcin_uid"] as? String, !uid.isEmpty {
+            UserDefaults.standard.set(uid, forKey: "felcin_uid")
         }
     }
 }

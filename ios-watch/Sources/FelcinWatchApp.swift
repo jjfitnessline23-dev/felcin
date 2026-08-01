@@ -8,7 +8,10 @@ struct FelcinWatchApp: App {
         WindowGroup {
             ContentView()
                 .environmentObject(workoutManager)
-                .onAppear { workoutManager.requestAuthorization() }
+                .onAppear {
+                    workoutManager.requestAuthorization()
+                    workoutManager.activateWatchConnectivity()
+                }
         }
     }
 }

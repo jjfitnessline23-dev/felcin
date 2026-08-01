@@ -249,8 +249,9 @@ workflows:
           import Capacitor
           import WebKit
           import Network
+          import WatchConnectivity
 
-          class ViewController: CAPBridgeViewController {
+          class ViewController: CAPBridgeViewController, WKScriptMessageHandler, WCSessionDelegate {
 
               override func viewDidLoad() {
                   super.viewDidLoad()
@@ -259,11 +260,46 @@ workflows:
                   self.webView?.backgroundColor = UIColor.black
                   self.webView?.scrollView.backgroundColor = UIColor.black
 
+                  // Register JS bridge to receive UID from web app
+                  self.webView?.configuration.userContentController.add(self, name: "felcinWatchSync")
+
+                  // Activate WatchConnectivity
+                  if WCSession.isSupported() {
+                      WCSession.default.delegate = self
+                      WCSession.default.activate()
+                  }
+
                   if !isConnectedSync() {
                       webView?.stopLoading()
                       webView?.load(URLRequest(url: URL(string: "felcin://localhost/")!))
                   }
               }
+
+              // Receive UID from JavaScript
+              func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
+                  guard message.name == "felcinWatchSync",
+                        let body = message.body as? [String: String],
+                        let uid = body["uid"], !uid.isEmpty else { return }
+                  UserDefaults.standard.set(uid, forKey: "felcin_uid")
+                  sendUIDToWatch(uid)
+              }
+
+              func sendUIDToWatch(_ uid: String) {
+                  guard WCSession.default.isReachable else {
+                      try? WCSession.default.updateApplicationContext(["felcin_uid": uid])
+                      return
+                  }
+                  WCSession.default.sendMessage(["felcin_uid": uid], replyHandler: nil, errorHandler: nil)
+              }
+
+              // WCSession delegate stubs
+              func session(_ session: WCSession, activationDidCompleteWith activationState: WCSessionActivationState, error: Error?) {
+                  if let uid = UserDefaults.standard.string(forKey: "felcin_uid"), !uid.isEmpty {
+                      try? session.updateApplicationContext(["felcin_uid": uid])
+                  }
+              }
+              func sessionDidBecomeInactive(_ session: WCSession) {}
+              func sessionDidDeactivate(_ session: WCSession) { WCSession.default.activate() }
 
               private func isConnectedSync() -> Bool {
                   let monitor = NWPathMonitor()
