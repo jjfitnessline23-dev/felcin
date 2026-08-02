@@ -285,11 +285,10 @@ workflows:
               }
 
               func sendUIDToWatch(_ uid: String) {
-                  guard WCSession.default.isReachable else {
-                      try? WCSession.default.updateApplicationContext(["felcin_uid": uid])
-                      return
+                  try? WCSession.default.updateApplicationContext(["felcin_uid": uid])
+                  if WCSession.default.isReachable {
+                      WCSession.default.sendMessage(["felcin_uid": uid], replyHandler: nil, errorHandler: nil)
                   }
-                  WCSession.default.sendMessage(["felcin_uid": uid], replyHandler: nil, errorHandler: nil)
               }
 
               // WCSession delegate stubs
@@ -473,7 +472,7 @@ workflows:
             DEVELOPMENT_TEAM=UWSVWR4VTX \
             CODE_SIGN_STYLE=Manual \
             CODE_SIGN_IDENTITY="Apple Distribution" \
-            MARKETING_VERSION=1.7 \
+            MARKETING_VERSION=1.8 \
             CURRENT_PROJECT_VERSION=$BUILD_NUMBER
 
           xcodebuild -exportArchive \
@@ -656,7 +655,7 @@ workflows:
           import os
           build_no = int(os.environ.get('BUILD_NUMBER', '1')) + 200
           content = re.sub(r'versionCode \d+', f'versionCode {build_no}', content)
-          content = re.sub(r'versionName "[^"]*"', 'versionName "1.7"', content)
+          content = re.sub(r'versionName "[^"]*"', 'versionName "1.8"', content)
           open(path, 'w').write(content)
           print(f'versionCode set to {build_no}')
           PYEOF
