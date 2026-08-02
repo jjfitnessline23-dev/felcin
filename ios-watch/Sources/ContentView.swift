@@ -18,6 +18,12 @@ struct ActivityPickerView: View {
     @EnvironmentObject var manager: WorkoutManager
     @AppStorage("useImperial") var useImperial = false
 
+    private var stepGoal: Int { 10_000 }
+    private var stepProgress: Double { min(1.0, Double(manager.dailySteps) / Double(stepGoal)) }
+    private var stepColor: Color {
+        stepProgress >= 1.0 ? .green : (stepProgress >= 0.5 ? .orange : .yellow)
+    }
+
     var body: some View {
         ScrollView {
             VStack(spacing: 10) {
@@ -26,6 +32,51 @@ struct ActivityPickerView: View {
                     .foregroundColor(.white)
                     .padding(.bottom, 2)
 
+                // Daily steps card
+                VStack(spacing: 6) {
+                    HStack {
+                        Image(systemName: "figure.walk")
+                            .font(.system(size: 13))
+                            .foregroundColor(.gray)
+                        Text("TODAY'S STEPS")
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundColor(.gray)
+                            .kerning(1)
+                        Spacer()
+                        if manager.dailySteps >= stepGoal {
+                            Image(systemName: "checkmark.circle.fill")
+                                .font(.system(size: 12))
+                                .foregroundColor(.green)
+                        }
+                    }
+                    HStack(alignment: .lastTextBaseline, spacing: 4) {
+                        Text(manager.dailySteps == 0 ? "--" : "\(manager.dailySteps.formatted())")
+                            .font(.system(size: 28, weight: .bold, design: .rounded))
+                            .foregroundColor(stepColor)
+                        if manager.dailySteps > 0 {
+                            Text("/ \(stepGoal.formatted())")
+                                .font(.system(size: 12))
+                                .foregroundColor(.gray)
+                        }
+                        Spacer()
+                    }
+                    GeometryReader { geo in
+                        ZStack(alignment: .leading) {
+                            RoundedRectangle(cornerRadius: 3)
+                                .fill(Color.white.opacity(0.08))
+                                .frame(height: 5)
+                            RoundedRectangle(cornerRadius: 3)
+                                .fill(stepColor)
+                                .frame(width: geo.size.width * stepProgress, height: 5)
+                        }
+                    }
+                    .frame(height: 5)
+                }
+                .padding(12)
+                .background(Color.white.opacity(0.06))
+                .cornerRadius(12)
+
+                // Activity buttons
                 ForEach(ActivityType.allCases, id: \.self) { type in
                     Button(action: { manager.startWorkout(type: type) }) {
                         HStack(spacing: 12) {
@@ -46,6 +97,7 @@ struct ActivityPickerView: View {
                     .buttonStyle(.plain)
                 }
 
+                // Unit toggle
                 Button(action: { useImperial.toggle() }) {
                     HStack(spacing: 6) {
                         Image(systemName: "ruler")
@@ -62,6 +114,7 @@ struct ActivityPickerView: View {
             }
             .padding()
         }
+        .onAppear { manager.fetchDailySteps() }
     }
 
     private func iconColor(_ type: ActivityType) -> Color {

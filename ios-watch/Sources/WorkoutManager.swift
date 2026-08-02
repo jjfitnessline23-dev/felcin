@@ -30,6 +30,7 @@ enum ActivityType: String, CaseIterable {
 
 class WorkoutManager: NSObject, ObservableObject {
     @Published var activityType:  ActivityType   = .run
+    @Published var dailySteps:    Int            = 0
     @Published var isRunning      = false
     @Published var isPaused       = false
     @Published var showingSummary = false
@@ -80,10 +81,42 @@ class WorkoutManager: NSObject, ObservableObject {
             HKQuantityType.quantityType(forIdentifier: .stepCount)!,
             HKQuantityType.workoutType()
         ]
-        healthStore.requestAuthorization(toShare: share, read: read) { _, _ in }
+        healthStore.requestAuthorization(toShare: share, read: read) { [weak self] _, _ in
+            self?.fetchDailySteps()
+        }
         locationManager.delegate = self
         locationManager.requestWhenInUseAuthorization()
         locationManager.desiredAccuracy = kCLLocationAccuracyBest
+    }
+
+    func fetchDailySteps() {
+        guard let stepType = HKQuantityType.quantityType(forIdentifier: .stepCount) else { return }
+        let startOfDay = Calendar.current.startOfDay(for: Date())
+        let predicate = HKQuery.predicateForSamples(withStart: startOfDay, end: Date(), options: .strictStartDate)
+        let query = HKStatisticsQuery(quantityType: stepType, quantitySamplePredicate: predicate, options: .cumulativeSum) { [weak self] _, stats, _ in
+            let steps = Int(stats?.sumQuantity()?.doubleValue(for: .count()) ?? 0)
+            DispatchQueue.main.async { self?.dailySteps = steps }
+            self?.syncDailyStepsToFelcin(steps: steps)
+        }
+        healthStore.execute(query)
+    }
+
+    func syncDailyStepsToFelcin(steps: Int) {
+        let uid = UserDefaults.standard.string(forKey: "felcin_uid") ?? ""
+        guard !uid.isEmpty, steps > 0 else { return }
+        let secret = Bundle.main.object(forInfoDictionaryKey: "WATCH_SYNC_SECRET") as? String ?? ""
+        let cal = Calendar.current
+        let comps = cal.dateComponents([.year, .month, .day], from: Date())
+        let dateStr = String(format: "%04d-%02d-%02d", comps.year ?? 0, comps.month ?? 0, comps.day ?? 0)
+        let body: [String: Any] = ["uid": uid, "secret": secret, "steps": steps, "date": dateStr]
+        guard let url = URL(string: "https://www.felcin.com/api/save-steps"),
+              let data = try? JSONSerialization.data(withJSONObject: body) else { return }
+        var req = URLRequest(url: url)
+        req.httpMethod = "POST"
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.httpBody = data
+        req.timeoutInterval = 15
+        URLSession.shared.dataTask(with: req).resume()
     }
 
     func startWorkout(type: ActivityType) {
