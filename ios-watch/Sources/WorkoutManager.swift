@@ -382,7 +382,6 @@ extension WorkoutManager: HKLiveWorkoutBuilderDelegate {
 
 extension WorkoutManager: WCSessionDelegate {
     func session(_ session: WCSession, activationDidCompleteWith activationState: WCSessionActivationState, error: Error?) {
-        // As soon as session activates, request UID if we don't have it
         let uid = UserDefaults.standard.string(forKey: "felcin_uid") ?? ""
         if uid.isEmpty { requestUIDFromPhone() }
     }
@@ -390,19 +389,21 @@ extension WorkoutManager: WCSessionDelegate {
     func session(_ session: WCSession, didReceiveMessage message: [String: Any]) {
         if let uid = message["felcin_uid"] as? String, !uid.isEmpty {
             UserDefaults.standard.set(uid, forKey: "felcin_uid")
+            DispatchQueue.main.async { self.fetchRecords() }
         }
     }
 
     func session(_ session: WCSession, didReceiveApplicationContext applicationContext: [String: Any]) {
         if let uid = applicationContext["felcin_uid"] as? String, !uid.isEmpty {
             UserDefaults.standard.set(uid, forKey: "felcin_uid")
+            DispatchQueue.main.async { self.fetchRecords() }
         }
     }
 
-    // Receives transferUserInfo — always delivered, even if value unchanged
     func session(_ session: WCSession, didReceiveUserInfo userInfo: [String: Any]) {
         if let uid = userInfo["felcin_uid"] as? String, !uid.isEmpty {
             UserDefaults.standard.set(uid, forKey: "felcin_uid")
+            DispatchQueue.main.async { self.fetchRecords() }
         }
     }
 }
@@ -410,12 +411,25 @@ extension WorkoutManager: WCSessionDelegate {
 extension WorkoutManager {
     func requestUIDFromPhone() {
         guard WCSession.default.activationState == .activated,
-              WCSession.default.isReachable else { return }
+              WCSession.default.isReachable else {
+            DispatchQueue.main.async {
+                self.recordsError = "Open Felcin on iPhone, then tap Retry"
+            }
+            return
+        }
         WCSession.default.sendMessage(["request": "uid"], replyHandler: { [weak self] reply in
             if let uid = reply["felcin_uid"] as? String, !uid.isEmpty {
                 UserDefaults.standard.set(uid, forKey: "felcin_uid")
                 DispatchQueue.main.async { self?.fetchRecords() }
+            } else {
+                DispatchQueue.main.async {
+                    self?.recordsError = "Open Felcin on iPhone, sign in, then tap Retry"
+                }
             }
-        }, errorHandler: nil)
+        }, errorHandler: { [weak self] _ in
+            DispatchQueue.main.async {
+                self?.recordsError = "Open Felcin on iPhone, then tap Retry"
+            }
+        })
     }
 }

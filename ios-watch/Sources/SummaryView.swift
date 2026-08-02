@@ -86,12 +86,22 @@ struct SummaryView: View {
             }
             .padding(.top, 4)
         } else if manager.noUID {
-            HStack(spacing: 6) {
-                Image(systemName: "iphone.and.arrow.forward")
-                    .font(.caption).foregroundColor(.orange)
-                Text("Open Felcin on iPhone to sync")
-                    .font(.caption).foregroundColor(.orange)
-                    .fixedSize(horizontal: false, vertical: true)
+            VStack(spacing: 6) {
+                HStack(spacing: 6) {
+                    Image(systemName: "iphone.and.arrow.forward")
+                        .font(.caption).foregroundColor(.orange)
+                    Text("Open Felcin on iPhone to sync")
+                        .font(.caption).foregroundColor(.orange)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Button(action: { manager.syncToFelcin() }) {
+                    Text("Retry Sync")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundColor(.orange)
+                        .padding(.horizontal, 12).padding(.vertical, 4)
+                        .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.orange.opacity(0.5), lineWidth: 1))
+                }
+                .buttonStyle(.plain)
             }
             .padding(.top, 4)
         } else if let err = manager.syncError {
