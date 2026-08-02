@@ -342,6 +342,8 @@ workflows:
           import UIKit
           import Capacitor
           import FirebaseCore
+          import FirebaseAuth
+          import WatchConnectivity
 
           @UIApplicationMain
           class AppDelegate: UIResponder, UIApplicationDelegate {
@@ -349,6 +351,19 @@ workflows:
 
               func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
                   FirebaseApp.configure()
+
+                  // Listen for Firebase Auth state — store UID in UserDefaults and push to Watch
+                  // This fires before the web app loads, so Watch always has the UID
+                  Auth.auth().addStateDidChangeListener { _, user in
+                      guard let uid = user?.uid, !uid.isEmpty else { return }
+                      UserDefaults.standard.set(uid, forKey: "felcin_uid")
+                      guard WCSession.isSupported(),
+                            WCSession.default.activationState == .activated,
+                            WCSession.default.isWatchAppInstalled else { return }
+                      try? WCSession.default.updateApplicationContext(["felcin_uid": uid])
+                      WCSession.default.transferUserInfo(["felcin_uid": uid])
+                  }
+
                   return true
               }
 
