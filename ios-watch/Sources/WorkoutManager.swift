@@ -29,9 +29,16 @@ enum ActivityType: String, CaseIterable {
 }
 
 class WorkoutManager: NSObject, ObservableObject {
-    @Published var activityType:  ActivityType   = .run
-    @Published var dailySteps:    Int            = 0
-    @Published var isRunning      = false
+    @Published var activityType:   ActivityType  = .run
+    @Published var dailySteps:     Int           = 0
+    @Published var isDistancePR    = false
+    @Published var isPacePR        = false
+    @Published var bestRunDist:    Double        = 0
+    @Published var bestRunPace:    Double        = 0
+    @Published var bestCycleDist:  Double        = 0
+    @Published var bestCycleSpeed: Double        = 0
+    @Published var loadingRecords  = false
+    @Published var isRunning       = false
     @Published var isPaused       = false
     @Published var showingSummary = false
     @Published var heartRate:   Double       = 0
@@ -215,15 +222,35 @@ class WorkoutManager: NSObject, ObservableObject {
         req.httpBody = data
         req.timeoutInterval = 30
 
-        URLSession.shared.dataTask(with: req) { data, response, error in
-            if let data = data, let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
-                let isDistPR = json["isDistancePR"] as? Bool ?? false
-                let isPacePR = json["isPacePR"] as? Bool ?? false
-                if isDistPR || isPacePR {
-                    DispatchQueue.main.async {
-                        UserDefaults.standard.set(true, forKey: "felcin_new_pr")
-                    }
-                }
+        URLSession.shared.dataTask(with: req) { [weak self] data, _, _ in
+            guard let data = data,
+                  let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return }
+            let distPR = json["isDistancePR"] as? Bool ?? false
+            let pacePR = json["isPacePR"] as? Bool ?? false
+            DispatchQueue.main.async {
+                self?.isDistancePR = distPR
+                self?.isPacePR = pacePR
+            }
+        }.resume()
+    }
+
+    func fetchRecords() {
+        let uid = UserDefaults.standard.string(forKey: "felcin_uid") ?? ""
+        guard !uid.isEmpty else { return }
+        let secret = Bundle.main.object(forInfoDictionaryKey: "WATCH_SYNC_SECRET") as? String ?? ""
+        guard let url = URL(string: "https://www.felcin.com/api/get-records?uid=\(uid)&secret=\(secret)") else { return }
+        loadingRecords = true
+        URLSession.shared.dataTask(with: URLRequest(url: url)) { [weak self] data, _, _ in
+            defer { DispatchQueue.main.async { self?.loadingRecords = false } }
+            guard let data = data,
+                  let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return }
+            let run   = json["run"]   as? [String: Any] ?? [:]
+            let cycle = json["cycle"] as? [String: Any] ?? [:]
+            DispatchQueue.main.async {
+                self?.bestRunDist    = run["bestDist"]    as? Double ?? 0
+                self?.bestRunPace    = run["bestPace"]    as? Double ?? 0
+                self?.bestCycleDist  = cycle["bestDist"]  as? Double ?? 0
+                self?.bestCycleSpeed = cycle["bestSpeed"] as? Double ?? 0
             }
         }.resume()
     }
@@ -233,6 +260,7 @@ class WorkoutManager: NSObject, ObservableObject {
         heartRate = 0; distance = 0; pace = 0; calories = 0
         elapsedTime = 0; pausedTime = 0; speed = 0; stepCount = 0
         coordinates = []
+        isDistancePR = false; isPacePR = false
         isRunning = false; isPaused = false; showingSummary = false
     }
 

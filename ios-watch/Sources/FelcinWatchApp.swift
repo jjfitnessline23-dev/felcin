@@ -6,12 +6,14 @@ struct FelcinWatchApp: App {
 
     var body: some Scene {
         WindowGroup {
-            ContentView()
-                .environmentObject(workoutManager)
-                .onAppear {
-                    workoutManager.requestAuthorization()
-                    workoutManager.activateWatchConnectivity()
-                }
+            NavigationStack {
+                ContentView()
+            }
+            .environmentObject(workoutManager)
+            .onAppear {
+                workoutManager.requestAuthorization()
+                workoutManager.activateWatchConnectivity()
+            }
         }
     }
 }

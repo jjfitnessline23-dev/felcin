@@ -97,6 +97,28 @@ struct ActivityPickerView: View {
                     .buttonStyle(.plain)
                 }
 
+                // My Records
+                NavigationLink(destination: RecordsView().environmentObject(manager)) {
+                    HStack(spacing: 10) {
+                        Image(systemName: "trophy.fill")
+                            .font(.system(size: 16))
+                            .foregroundColor(.yellow)
+                            .frame(width: 28)
+                        Text("My Records")
+                            .font(.headline)
+                            .foregroundColor(.white)
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 11))
+                            .foregroundColor(.gray)
+                    }
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 12)
+                    .background(Color.white.opacity(0.08))
+                    .cornerRadius(12)
+                }
+                .buttonStyle(.plain)
+
                 // Unit toggle
                 Button(action: { useImperial.toggle() }) {
                     HStack(spacing: 6) {

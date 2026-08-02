@@ -7,6 +7,29 @@ struct SummaryView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 10) {
+                if manager.isDistancePR || manager.isPacePR {
+                    HStack(spacing: 8) {
+                        Image(systemName: "trophy.fill")
+                            .font(.system(size: 16))
+                            .foregroundColor(.yellow)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("New PR!")
+                                .font(.system(size: 13, weight: .bold))
+                                .foregroundColor(.yellow)
+                            Text([manager.isDistancePR ? "Best distance" : nil,
+                                  manager.isPacePR ? (manager.activityType == .cycle ? "Best speed" : "Best pace") : nil]
+                                .compactMap { $0 }.joined(separator: " · "))
+                                .font(.system(size: 10))
+                                .foregroundColor(Color.yellow.opacity(0.7))
+                        }
+                        Spacer()
+                    }
+                    .padding(10)
+                    .background(Color.yellow.opacity(0.12))
+                    .cornerRadius(10)
+                    .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.yellow.opacity(0.3), lineWidth: 1))
+                }
+
                 Image(systemName: "checkmark.circle.fill")
                     .font(.system(size: 30)).foregroundColor(.green)
                 Text(title)
