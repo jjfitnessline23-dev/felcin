@@ -276,9 +276,8 @@ class WorkoutManager: NSObject, ObservableObject {
             }
             return
         }
-        let secret = Bundle.main.object(forInfoDictionaryKey: "WATCH_SYNC_SECRET") as? String ?? ""
         let escaped = uid.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? uid
-        guard let url = URL(string: "https://www.felcin.com/api/get-records?uid=\(escaped)&secret=\(secret)") else { return }
+        guard let url = URL(string: "https://www.felcin.com/api/get-records?uid=\(escaped)") else { return }
         DispatchQueue.main.async { self.loadingRecords = true; self.recordsError = nil }
         URLSession.shared.dataTask(with: URLRequest(url: url)) { [weak self] data, response, error in
             DispatchQueue.main.async {
