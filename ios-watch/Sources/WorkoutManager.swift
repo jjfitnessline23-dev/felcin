@@ -38,6 +38,7 @@ class WorkoutManager: NSObject, ObservableObject {
     @Published var bestCycleDist:  Double        = 0
     @Published var bestCycleSpeed: Double        = 0
     @Published var loadingRecords  = false
+    @Published var recordsError:   String?       = nil
     @Published var isSyncing       = false
     @Published var syncSaved       = false
     @Published var syncError:      String?       = nil
@@ -245,27 +246,63 @@ class WorkoutManager: NSObject, ObservableObject {
                 self?.syncSaved     = true
                 self?.isDistancePR  = json["isDistancePR"] as? Bool ?? false
                 self?.isPacePR      = json["isPacePR"]     as? Bool ?? false
+                // Refresh records so My Records screen is up to date
+                self?.fetchRecords()
             }
         }.resume()
     }
 
+    func loadCachedRecords() {
+        let ud = UserDefaults.standard
+        let d  = ud.double(forKey: "felcin_bestRunDist")
+        let p  = ud.double(forKey: "felcin_bestRunPace")
+        let cd = ud.double(forKey: "felcin_bestCycleDist")
+        let cs = ud.double(forKey: "felcin_bestCycleSpeed")
+        if d > 0 { bestRunDist    = d }
+        if p > 0 { bestRunPace    = p }
+        if cd > 0 { bestCycleDist = cd }
+        if cs > 0 { bestCycleSpeed = cs }
+    }
+
     func fetchRecords() {
         let uid = UserDefaults.standard.string(forKey: "felcin_uid") ?? ""
-        guard !uid.isEmpty else { return }
+        guard !uid.isEmpty else {
+            DispatchQueue.main.async { self.recordsError = "Open Felcin on iPhone first to link your account" }
+            return
+        }
         let secret = Bundle.main.object(forInfoDictionaryKey: "WATCH_SYNC_SECRET") as? String ?? ""
-        guard let url = URL(string: "https://www.felcin.com/api/get-records?uid=\(uid)&secret=\(secret)") else { return }
-        loadingRecords = true
-        URLSession.shared.dataTask(with: URLRequest(url: url)) { [weak self] data, _, _ in
-            defer { DispatchQueue.main.async { self?.loadingRecords = false } }
-            guard let data = data,
-                  let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return }
-            let run   = json["run"]   as? [String: Any] ?? [:]
-            let cycle = json["cycle"] as? [String: Any] ?? [:]
+        let escaped = uid.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? uid
+        guard let url = URL(string: "https://www.felcin.com/api/get-records?uid=\(escaped)&secret=\(secret)") else { return }
+        DispatchQueue.main.async { self.loadingRecords = true; self.recordsError = nil }
+        URLSession.shared.dataTask(with: URLRequest(url: url)) { [weak self] data, response, error in
             DispatchQueue.main.async {
-                self?.bestRunDist    = run["bestDist"]    as? Double ?? 0
-                self?.bestRunPace    = run["bestPace"]    as? Double ?? 0
-                self?.bestCycleDist  = cycle["bestDist"]  as? Double ?? 0
-                self?.bestCycleSpeed = cycle["bestSpeed"] as? Double ?? 0
+                self?.loadingRecords = false
+                if let error = error {
+                    self?.recordsError = "Network error: \(error.localizedDescription)"; return
+                }
+                guard let data = data,
+                      let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+                    self?.recordsError = "Could not read response"; return
+                }
+                if let errMsg = json["error"] as? String {
+                    self?.recordsError = errMsg; return
+                }
+                let run   = json["run"]   as? [String: Any] ?? [:]
+                let cycle = json["cycle"] as? [String: Any] ?? [:]
+                let d  = run["bestDist"]    as? Double ?? 0
+                let p  = run["bestPace"]    as? Double ?? 0
+                let cd = cycle["bestDist"]  as? Double ?? 0
+                let cs = cycle["bestSpeed"] as? Double ?? 0
+                self?.bestRunDist    = d
+                self?.bestRunPace    = p
+                self?.bestCycleDist  = cd
+                self?.bestCycleSpeed = cs
+                // Cache so Records screen loads instantly next time
+                let ud = UserDefaults.standard
+                ud.set(d,  forKey: "felcin_bestRunDist")
+                ud.set(p,  forKey: "felcin_bestRunPace")
+                ud.set(cd, forKey: "felcin_bestCycleDist")
+                ud.set(cs, forKey: "felcin_bestCycleSpeed")
             }
         }.resume()
     }

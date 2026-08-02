@@ -8,8 +8,33 @@ struct RecordsView: View {
         ScrollView {
             VStack(spacing: 10) {
                 if manager.loadingRecords {
-                    ProgressView()
-                        .padding(.top, 20)
+                    VStack(spacing: 8) {
+                        ProgressView()
+                        Text("Loading records…")
+                            .font(.caption).foregroundColor(.gray)
+                    }
+                    .padding(.top, 20)
+                } else if let err = manager.recordsError {
+                    VStack(spacing: 10) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .font(.system(size: 24))
+                            .foregroundColor(.orange)
+                        Text(err)
+                            .font(.caption)
+                            .foregroundColor(.gray)
+                            .multilineTextAlignment(.center)
+                        Button(action: { manager.fetchRecords() }) {
+                            Text("Retry")
+                                .font(.caption).fontWeight(.bold)
+                                .foregroundColor(.white)
+                                .padding(.horizontal, 20)
+                                .padding(.vertical, 8)
+                                .background(Color.blue.opacity(0.8))
+                                .cornerRadius(8)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    .padding(.top, 16)
                 } else {
                     recordCard(
                         title: "RUNNING",
@@ -23,6 +48,18 @@ struct RecordsView: View {
                         color: .blue,
                         rows: cycleRows
                     )
+
+                    Button(action: { manager.fetchRecords() }) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "arrow.clockwise")
+                                .font(.system(size: 11))
+                            Text("Refresh")
+                                .font(.caption)
+                        }
+                        .foregroundColor(.gray)
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.top, 4)
                 }
             }
             .padding()
@@ -42,7 +79,7 @@ struct RecordsView: View {
             let unit = useImperial ? "/mi" : "/km"
             rows.append(("Best Pace", String(format: "%d'%02d\"%@", Int(p) / 60, Int(p) % 60, unit)))
         }
-        return rows.isEmpty ? [("No runs yet", "—")] : rows
+        return rows.isEmpty ? [("No runs recorded yet", "—")] : rows
     }
 
     private var cycleRows: [(String, String)] {
@@ -55,7 +92,7 @@ struct RecordsView: View {
             let spd = useImperial ? manager.bestCycleSpeed * 2.23694 : manager.bestCycleSpeed * 3.6
             rows.append(("Best Speed", String(format: "%.1f %@", spd, useImperial ? "mph" : "km/h")))
         }
-        return rows.isEmpty ? [("No rides yet", "—")] : rows
+        return rows.isEmpty ? [("No rides recorded yet", "—")] : rows
     }
 
     private func recordCard(title: String, icon: String, color: Color, rows: [(String, String)]) -> some View {
@@ -83,7 +120,7 @@ struct RecordsView: View {
                     Text(value)
                         .font(.caption)
                         .fontWeight(.bold)
-                        .foregroundColor(.white)
+                        .foregroundColor(value == "—" ? .gray : .white)
                 }
                 .padding(.horizontal, 12)
                 .padding(.vertical, 8)

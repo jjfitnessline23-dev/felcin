@@ -11,6 +11,7 @@ struct FelcinWatchApp: App {
             }
             .environmentObject(workoutManager)
             .onAppear {
+                workoutManager.loadCachedRecords()
                 workoutManager.requestAuthorization()
                 workoutManager.activateWatchConnectivity()
             }

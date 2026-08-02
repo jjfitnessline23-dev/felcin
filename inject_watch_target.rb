@@ -62,6 +62,7 @@ watch_target.build_configurations.each do |cfg|
   s['GENERATE_INFOPLIST_FILE']            = 'NO'
   s['PROVISIONING_PROFILE_SPECIFIER']     = ENV.fetch('WATCH_PROFILE_UUID', '')
   s['ASSETCATALOG_COMPILER_APPICON_NAME'] = 'AppIcon'
+  s['WATCH_SYNC_SECRET']                  = ENV.fetch('WATCH_SYNC_SECRET', '')
 end
 
 swift_refs.each { |ref| watch_target.source_build_phase.add_file_reference(ref) }
