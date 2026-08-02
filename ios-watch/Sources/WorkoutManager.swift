@@ -38,6 +38,10 @@ class WorkoutManager: NSObject, ObservableObject {
     @Published var bestCycleDist:  Double        = 0
     @Published var bestCycleSpeed: Double        = 0
     @Published var loadingRecords  = false
+    @Published var isSyncing       = false
+    @Published var syncSaved       = false
+    @Published var syncError:      String?       = nil
+    @Published var noUID           = false
     @Published var isRunning       = false
     @Published var isPaused       = false
     @Published var showingSummary = false
@@ -187,17 +191,17 @@ class WorkoutManager: NSObject, ObservableObject {
     }
 
     func syncToFelcin() {
-        guard distance > 50 else { return } // ignore very short workouts
         let uid = UserDefaults.standard.string(forKey: "felcin_uid") ?? ""
-        guard !uid.isEmpty else { return }
+        guard !uid.isEmpty else {
+            DispatchQueue.main.async { self.noUID = true }
+            return
+        }
+
+        DispatchQueue.main.async { self.isSyncing = true; self.syncError = nil }
 
         let secret = Bundle.main.object(forInfoDictionaryKey: "WATCH_SYNC_SECRET") as? String ?? ""
-        let apiUrl = "https://www.felcin.com/api/save-watch-run"
-
         let day = Calendar.current.weekdaySymbols[Calendar.current.component(.weekday, from: Date()) - 1]
         let actType = activityType == .cycle ? "cycle" : "run"
-        let runName = "\(day.prefix(3)) \(actType.capitalized)"
-
         let coordArray = coordinates.map { ["lat": $0.latitude, "lng": $0.longitude] }
 
         let body: [String: Any] = [
@@ -206,15 +210,18 @@ class WorkoutManager: NSObject, ObservableObject {
             "distance":     distance,
             "duration":     elapsedTime,
             "avgPace":      pace,
-            "name":         runName,
+            "name":         "\(day.prefix(3)) \(actType.capitalized)",
             "coordinates":  coordArray,
             "activityType": actType,
             "calories":     calories,
             "heartRate":    heartRate,
         ]
 
-        guard let url = URL(string: apiUrl),
-              let data = try? JSONSerialization.data(withJSONObject: body) else { return }
+        guard let url = URL(string: "https://www.felcin.com/api/save-watch-run"),
+              let data = try? JSONSerialization.data(withJSONObject: body) else {
+            DispatchQueue.main.async { self.isSyncing = false; self.syncError = "Could not build request" }
+            return
+        }
 
         var req = URLRequest(url: url)
         req.httpMethod = "POST"
@@ -222,14 +229,22 @@ class WorkoutManager: NSObject, ObservableObject {
         req.httpBody = data
         req.timeoutInterval = 30
 
-        URLSession.shared.dataTask(with: req) { [weak self] data, _, _ in
-            guard let data = data,
-                  let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return }
-            let distPR = json["isDistancePR"] as? Bool ?? false
-            let pacePR = json["isPacePR"] as? Bool ?? false
+        URLSession.shared.dataTask(with: req) { [weak self] data, response, error in
             DispatchQueue.main.async {
-                self?.isDistancePR = distPR
-                self?.isPacePR = pacePR
+                self?.isSyncing = false
+                if let error = error {
+                    self?.syncError = error.localizedDescription; return
+                }
+                guard let data = data,
+                      let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+                    self?.syncError = "Server error"; return
+                }
+                if let errMsg = json["error"] as? String {
+                    self?.syncError = errMsg; return
+                }
+                self?.syncSaved     = true
+                self?.isDistancePR  = json["isDistancePR"] as? Bool ?? false
+                self?.isPacePR      = json["isPacePR"]     as? Bool ?? false
             }
         }.resume()
     }
@@ -261,6 +276,7 @@ class WorkoutManager: NSObject, ObservableObject {
         elapsedTime = 0; pausedTime = 0; speed = 0; stepCount = 0
         coordinates = []
         isDistancePR = false; isPacePR = false
+        isSyncing = false; syncSaved = false; syncError = nil; noUID = false
         isRunning = false; isPaused = false; showingSummary = false
     }
 
