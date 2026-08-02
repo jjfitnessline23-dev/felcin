@@ -2,6 +2,7 @@ import SwiftUI
 
 struct SummaryView: View {
     @EnvironmentObject var manager: WorkoutManager
+    @AppStorage("useImperial") var useImperial = false
 
     var body: some View {
         ScrollView {
@@ -14,22 +15,22 @@ struct SummaryView: View {
 
                 switch manager.activityType {
                 case .run:
-                    row("Distance", String(format: "%.2f km", manager.distance / 1000))
+                    row("Distance", distanceString)
                     row("Time",     elapsed)
                     row("Avg Pace", pace)
-                    row("Calories", "\(Int(manager.calories)) cal")
+                    row("Calories", manager.calories > 0 ? "\(Int(manager.calories)) cal" : "--")
                     row("Heart Rate", hr)
                 case .cycle:
-                    row("Distance", String(format: "%.2f km", manager.distance / 1000))
+                    row("Distance", distanceString)
                     row("Time",     elapsed)
-                    row("Avg Speed", manager.speed > 0 ? String(format: "%.1f km/h", manager.speed * 3.6) : "--")
-                    row("Calories", "\(Int(manager.calories)) cal")
+                    row("Avg Speed", speedString)
+                    row("Calories", manager.calories > 0 ? "\(Int(manager.calories)) cal" : "--")
                     row("Heart Rate", hr)
                 case .steps:
                     row("Steps",    "\(manager.stepCount)")
-                    row("Distance", String(format: "%.2f km", manager.distance / 1000))
+                    row("Distance", distanceString)
                     row("Time",     elapsed)
-                    row("Calories", "\(Int(manager.calories)) cal")
+                    row("Calories", manager.calories > 0 ? "\(Int(manager.calories)) cal" : "--")
                     row("Heart Rate", hr)
                 }
 
@@ -54,17 +55,36 @@ struct SummaryView: View {
         case .steps: return "Walk Complete"
         }
     }
+
+    private var distanceString: String {
+        let val = useImperial ? manager.distance / 1609.34 : manager.distance / 1000
+        let unit = useImperial ? "mi" : "km"
+        return String(format: "%.2f %@", val, unit)
+    }
+
+    private var speedString: String {
+        guard manager.speed > 0 else { return "--" }
+        return useImperial
+            ? String(format: "%.1f mph", manager.speed * 2.23694)
+            : String(format: "%.1f km/h", manager.speed * 3.6)
+    }
+
     private var hr: String { manager.heartRate > 0 ? "\(Int(manager.heartRate)) bpm" : "--" }
+
     private var elapsed: String {
         let t = Int(manager.elapsedTime)
         let h = t / 3600, m = (t % 3600) / 60, s = t % 60
         return h > 0 ? String(format: "%d:%02d:%02d", h, m, s) : String(format: "%d:%02d", m, s)
     }
+
     private var pace: String {
-        guard manager.pace > 0 else { return "--'--\"/km" }
-        let m = Int(manager.pace) / 60, s = Int(manager.pace) % 60
-        return String(format: "%d'%02d\"/km", m, s)
+        guard manager.pace > 0 else { return "--" }
+        let paceSeconds = useImperial ? manager.pace * 1.60934 : manager.pace
+        let m = Int(paceSeconds) / 60, s = Int(paceSeconds) % 60
+        let unit = useImperial ? "/mi" : "/km"
+        return String(format: "%d'%02d\"%@", m, s, unit)
     }
+
     private func row(_ label: String, _ value: String) -> some View {
         HStack {
             Text(label).font(.caption).foregroundColor(.gray)

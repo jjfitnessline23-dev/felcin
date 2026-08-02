@@ -16,6 +16,7 @@ struct WorkoutView: View {
 
 struct MetricsView: View {
     @EnvironmentObject var manager: WorkoutManager
+    @AppStorage("useImperial") var useImperial = false
 
     var body: some View {
         VStack(spacing: 2) {
@@ -33,10 +34,10 @@ struct MetricsView: View {
                 }
             } else {
                 HStack(alignment: .lastTextBaseline, spacing: 3) {
-                    Text(String(format: "%.2f", manager.distance / 1000))
+                    Text(String(format: "%.2f", distanceValue))
                         .font(.system(size: 32, weight: .bold))
                         .foregroundColor(manager.activityType == .cycle ? .blue : .green)
-                    Text("km")
+                    Text(distanceUnit)
                         .font(.caption).foregroundColor(.gray)
                 }
             }
@@ -46,15 +47,15 @@ struct MetricsView: View {
                     if manager.activityType == .cycle {
                         Text(speedString)
                             .font(.system(size: 15, weight: .semibold)).foregroundColor(.white)
-                        Text("km/h")
+                        Text(useImperial ? "mph" : "km/h")
                             .font(.system(size: 10)).foregroundColor(.gray)
                     } else if manager.activityType == .run {
                         Text(paceString)
                             .font(.system(size: 15, weight: .semibold)).foregroundColor(.white)
-                        Text("/km")
+                        Text(useImperial ? "/mi" : "/km")
                             .font(.system(size: 10)).foregroundColor(.gray)
                     } else {
-                        Text(String(format: "%.2f km", manager.distance / 1000))
+                        Text(String(format: "%.2f %@", distanceValue, distanceUnit))
                             .font(.system(size: 15, weight: .semibold)).foregroundColor(.white)
                         Text("dist")
                             .font(.system(size: 10)).foregroundColor(.gray)
@@ -76,7 +77,7 @@ struct MetricsView: View {
             }
 
             HStack(spacing: 2) {
-                Text(String(Int(manager.calories)))
+                Text(manager.calories > 0 ? String(Int(manager.calories)) : "--")
                     .font(.system(size: 13, weight: .semibold)).foregroundColor(.orange)
                 Text("cal")
                     .font(.system(size: 11)).foregroundColor(.gray)
@@ -106,6 +107,11 @@ struct MetricsView: View {
         .padding(.vertical, 4)
     }
 
+    private var distanceValue: Double {
+        useImperial ? manager.distance / 1609.34 : manager.distance / 1000
+    }
+    private var distanceUnit: String { useImperial ? "mi" : "km" }
+
     private var elapsedString: String {
         let t = Int(manager.elapsedTime)
         let h = t / 3600, m = (t % 3600) / 60, s = t % 60
@@ -113,11 +119,14 @@ struct MetricsView: View {
     }
     private var paceString: String {
         guard manager.pace > 0 else { return "--'--\"" }
-        let m = Int(manager.pace) / 60, s = Int(manager.pace) % 60
+        let paceSeconds = useImperial ? manager.pace * 1.60934 : manager.pace
+        let m = Int(paceSeconds) / 60, s = Int(paceSeconds) % 60
         return String(format: "%d'%02d\"", m, s)
     }
     private var speedString: String {
         guard manager.speed > 0 else { return "--.-" }
-        return String(format: "%.1f", manager.speed * 3.6)
+        return useImperial
+            ? String(format: "%.1f", manager.speed * 2.23694)
+            : String(format: "%.1f", manager.speed * 3.6)
     }
 }

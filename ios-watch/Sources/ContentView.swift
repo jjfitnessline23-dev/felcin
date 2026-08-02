@@ -16,6 +16,7 @@ struct ContentView: View {
 
 struct ActivityPickerView: View {
     @EnvironmentObject var manager: WorkoutManager
+    @AppStorage("useImperial") var useImperial = false
 
     var body: some View {
         ScrollView {
@@ -44,6 +45,20 @@ struct ActivityPickerView: View {
                     }
                     .buttonStyle(.plain)
                 }
+
+                Button(action: { useImperial.toggle() }) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "ruler")
+                            .font(.system(size: 13))
+                            .foregroundColor(.gray)
+                        Text(useImperial ? "Miles (mi)" : "Kilometers (km)")
+                            .font(.caption)
+                            .foregroundColor(.gray)
+                    }
+                    .padding(.vertical, 8)
+                }
+                .buttonStyle(.plain)
+                .padding(.top, 4)
             }
             .padding()
         }
