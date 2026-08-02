@@ -397,6 +397,46 @@ workflows:
           rm -f Podfile.lock
           pod install --repo-update
 
+      - name: Patch Geolocation plugin for background tracking
+        script: |
+          # Enable background location updates in the Capacitor Geolocation plugin
+          GEOLOC=$(find ios/App/Pods -name "Geolocation.swift" 2>/dev/null | head -1)
+          if [ -z "$GEOLOC" ]; then
+            GEOLOC=$(find ios/App/Pods -name "GeolocationPlugin.swift" 2>/dev/null | head -1)
+          fi
+          if [ -n "$GEOLOC" ]; then
+            echo "Patching: $GEOLOC"
+            python3 << PYEOF
+          import re, pathlib
+          p = pathlib.Path("$GEOLOC")
+          src = p.read_text()
+          # Insert after delegate assignment in load() or first locationManager setup
+          patch = "\n        self.locationManager.allowsBackgroundLocationUpdates = true\n        self.locationManager.pausesLocationUpdatesAutomatically = false"
+          # Try to insert after 'delegate = self' on the locationManager
+          new_src = re.sub(
+              r'(self\.locationManager\.delegate\s*=\s*self)',
+              r'\1' + patch,
+              src,
+              count=1
+          )
+          if new_src != src:
+              p.write_text(new_src)
+              print("Patched successfully")
+          else:
+              # Fallback: insert after startUpdatingLocation
+              new_src = re.sub(
+                  r'(locationManager\.startUpdatingLocation\(\))',
+                  patch.lstrip() + "\n        " + r'\1',
+                  src,
+                  count=1
+              )
+              p.write_text(new_src)
+              print("Patched via startUpdatingLocation fallback")
+          PYEOF
+          else
+            echo "Warning: Geolocation.swift not found — skipping patch"
+          fi
+
       - name: Inject Watch app target
         script: |
           gem install xcodeproj --quiet 2>/dev/null || true
