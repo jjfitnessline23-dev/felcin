@@ -39,6 +39,9 @@ class WorkoutManager: NSObject, ObservableObject {
     @Published var bestCycleSpeed: Double        = 0
     @Published var loadingRecords  = false
     @Published var recordsError:   String?       = nil
+    @Published var isPairing       = false
+    @Published var pairingCode:    String?       = nil
+    @Published var pairingExpired  = false
     @Published var isSyncing       = false
     @Published var syncSaved       = false
     @Published var syncError:      String?       = nil
@@ -410,25 +413,60 @@ extension WorkoutManager: WCSessionDelegate {
 extension WorkoutManager {
     func requestUIDFromPhone() {
         guard WCSession.default.activationState == .activated,
-              WCSession.default.isReachable else {
-            DispatchQueue.main.async {
-                self.recordsError = "Open Felcin on iPhone, then tap Retry"
-            }
-            return
-        }
+              WCSession.default.isReachable else { return }
         WCSession.default.sendMessage(["request": "uid"], replyHandler: { [weak self] reply in
             if let uid = reply["felcin_uid"] as? String, !uid.isEmpty {
                 UserDefaults.standard.set(uid, forKey: "felcin_uid")
                 DispatchQueue.main.async { self?.fetchRecords() }
-            } else {
+            }
+        }, errorHandler: nil)
+    }
+
+    func initiatePairing() {
+        isPairing = true
+        pairingCode = nil
+        pairingExpired = false
+        guard let url = URL(string: "https://www.felcin.com/api/watch-init") else { return }
+        var req = URLRequest(url: url)
+        req.httpMethod = "POST"
+        req.timeoutInterval = 15
+        URLSession.shared.dataTask(with: req) { [weak self] data, _, _ in
+            guard let data = data,
+                  let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  let code = json["code"] as? String else {
+                DispatchQueue.main.async { self?.isPairing = false }
+                return
+            }
+            DispatchQueue.main.async { self?.pairingCode = code }
+            self?.pollForUID(code: code)
+        }.resume()
+    }
+
+    private func pollForUID(code: String) {
+        guard isPairing else { return }
+        guard let url = URL(string: "https://www.felcin.com/api/watch-poll?code=\(code)") else { return }
+        URLSession.shared.dataTask(with: URLRequest(url: url)) { [weak self] data, _, _ in
+            guard let self = self else { return }
+            guard let data = data,
+                  let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 3) { self.pollForUID(code: code) }
+                return
+            }
+            if let uid = json["uid"] as? String, !uid.isEmpty {
+                UserDefaults.standard.set(uid, forKey: "felcin_uid")
                 DispatchQueue.main.async {
-                    self?.recordsError = "Open Felcin on iPhone, sign in, then tap Retry"
+                    self.isPairing = false
+                    self.pairingCode = nil
+                    self.fetchRecords()
                 }
+            } else if json["expired"] as? Bool == true {
+                DispatchQueue.main.async {
+                    self.isPairing = false
+                    self.pairingExpired = true
+                }
+            } else {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 3) { self.pollForUID(code: code) }
             }
-        }, errorHandler: { [weak self] _ in
-            DispatchQueue.main.async {
-                self?.recordsError = "Open Felcin on iPhone, then tap Retry"
-            }
-        })
+        }.resume()
     }
 }
