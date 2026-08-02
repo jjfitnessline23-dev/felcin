@@ -285,7 +285,9 @@ workflows:
               }
 
               func sendUIDToWatch(_ uid: String) {
+                  // updateApplicationContext skips if value unchanged — use transferUserInfo too
                   try? WCSession.default.updateApplicationContext(["felcin_uid": uid])
+                  WCSession.default.transferUserInfo(["felcin_uid": uid])
                   if WCSession.default.isReachable {
                       WCSession.default.sendMessage(["felcin_uid": uid], replyHandler: nil, errorHandler: nil)
                   }
@@ -295,10 +297,19 @@ workflows:
               func session(_ session: WCSession, activationDidCompleteWith activationState: WCSessionActivationState, error: Error?) {
                   if let uid = UserDefaults.standard.string(forKey: "felcin_uid"), !uid.isEmpty {
                       try? session.updateApplicationContext(["felcin_uid": uid])
+                      WCSession.default.transferUserInfo(["felcin_uid": uid])
                   }
               }
               func sessionDidBecomeInactive(_ session: WCSession) {}
               func sessionDidDeactivate(_ session: WCSession) { WCSession.default.activate() }
+
+              // Watch requests UID on demand — reply immediately with stored UID
+              func session(_ session: WCSession, didReceiveMessage message: [String: Any], replyHandler: @escaping ([String: Any]) -> Void) {
+                  if message["request"] as? String == "uid" {
+                      let uid = UserDefaults.standard.string(forKey: "felcin_uid") ?? ""
+                      replyHandler(["felcin_uid": uid])
+                  }
+              }
 
               private func isConnectedSync() -> Bool {
                   let monitor = NWPathMonitor()

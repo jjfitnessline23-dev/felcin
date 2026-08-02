@@ -267,7 +267,13 @@ class WorkoutManager: NSObject, ObservableObject {
     func fetchRecords() {
         let uid = UserDefaults.standard.string(forKey: "felcin_uid") ?? ""
         guard !uid.isEmpty else {
-            DispatchQueue.main.async { self.recordsError = "Open Felcin on iPhone first to link your account" }
+            // Try pulling UID from iPhone automatically before giving up
+            if WCSession.default.activationState == .activated, WCSession.default.isReachable {
+                DispatchQueue.main.async { self.recordsError = "Syncing account from iPhone…" }
+                requestUIDFromPhone()
+            } else {
+                DispatchQueue.main.async { self.recordsError = "Open Felcin on iPhone, then tap Retry" }
+            }
             return
         }
         let secret = Bundle.main.object(forInfoDictionaryKey: "WATCH_SYNC_SECRET") as? String ?? ""
@@ -375,7 +381,11 @@ extension WorkoutManager: HKLiveWorkoutBuilderDelegate {
 }
 
 extension WorkoutManager: WCSessionDelegate {
-    func session(_ session: WCSession, activationDidCompleteWith activationState: WCSessionActivationState, error: Error?) {}
+    func session(_ session: WCSession, activationDidCompleteWith activationState: WCSessionActivationState, error: Error?) {
+        // As soon as session activates, request UID if we don't have it
+        let uid = UserDefaults.standard.string(forKey: "felcin_uid") ?? ""
+        if uid.isEmpty { requestUIDFromPhone() }
+    }
 
     func session(_ session: WCSession, didReceiveMessage message: [String: Any]) {
         if let uid = message["felcin_uid"] as? String, !uid.isEmpty {
@@ -387,5 +397,25 @@ extension WorkoutManager: WCSessionDelegate {
         if let uid = applicationContext["felcin_uid"] as? String, !uid.isEmpty {
             UserDefaults.standard.set(uid, forKey: "felcin_uid")
         }
+    }
+
+    // Receives transferUserInfo — always delivered, even if value unchanged
+    func session(_ session: WCSession, didReceiveUserInfo userInfo: [String: Any]) {
+        if let uid = userInfo["felcin_uid"] as? String, !uid.isEmpty {
+            UserDefaults.standard.set(uid, forKey: "felcin_uid")
+        }
+    }
+}
+
+extension WorkoutManager {
+    func requestUIDFromPhone() {
+        guard WCSession.default.activationState == .activated,
+              WCSession.default.isReachable else { return }
+        WCSession.default.sendMessage(["request": "uid"], replyHandler: { [weak self] reply in
+            if let uid = reply["felcin_uid"] as? String, !uid.isEmpty {
+                UserDefaults.standard.set(uid, forKey: "felcin_uid")
+                DispatchQueue.main.async { self?.fetchRecords() }
+            }
+        }, errorHandler: nil)
     }
 }
