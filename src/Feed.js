@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { collection, getDocs, doc, getDoc } from 'firebase/firestore';
 import { db, auth } from './firebase';
+import { logError } from './logError';
 
 function formatTime(ts) {
   if (!ts?.toMillis) return '';
@@ -53,7 +54,7 @@ function Feed() {
         setPosts(allPosts);
         setLoading(false);
       } catch (error) {
-        console.error('Error loading feed:', error);
+        logError('Feed.loadFollowingAndPosts', error);
         setLoading(false);
       }
     };

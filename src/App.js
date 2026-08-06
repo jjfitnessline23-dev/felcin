@@ -22,6 +22,7 @@ import Messages from './Messages';
 import AdminPanel from './AdminPanel';
 import PolicyPage from './PolicyPage';
 import { useWelcomeNotification } from './welcomeNotification';
+import { logError } from './logError';
 import './index.css';
 
 function getAuthErrorMessage(errorCode) {
@@ -212,6 +213,7 @@ function App() {
       setAcceptedPolicies(false);
       setCurrentPage('feed');
     } catch (error) {
+      logError('App.handleAuth', error);
       setAuthError(getAuthErrorMessage(error.code));
     }
   };
@@ -280,6 +282,7 @@ function App() {
       setVideoFile(null);
       setUploadProgress(0);
     } catch (error) {
+      logError('App.addPost', error);
       setPostError(getStorageErrorMessage(error?.code));
     } finally {
       setUploading(false);

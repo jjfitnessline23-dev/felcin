@@ -12,6 +12,7 @@ import {
   where,
 } from 'firebase/firestore';
 import { db } from './firebase';
+import { logError } from './logError';
 
 function buildChatId(a, b) {
   return [a, b].sort().join('_');
@@ -68,6 +69,7 @@ function Messages({ currentUser }) {
           setActiveChatId(chatRows[0].id);
         }
       } catch (e) {
+        logError('Messages.loadInitial', e);
         setError('Failed to load messages.');
       } finally {
         setLoading(false);
@@ -90,7 +92,8 @@ function Messages({ currentUser }) {
       (snap) => {
         setMessages(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
       },
-      () => {
+      (e) => {
+        logError('Messages.onSnapshot', e);
         setError('Failed to listen for new messages.');
       }
     );
@@ -138,6 +141,7 @@ function Messages({ currentUser }) {
       setSelectedUserId('');
       setError('');
     } catch (e) {
+      logError('Messages.startChat', e);
       setError('Unable to start chat.');
     }
   };
@@ -167,6 +171,7 @@ function Messages({ currentUser }) {
 
       setMessageText('');
     } catch (e) {
+      logError('Messages.sendMessage', e);
       setError('Message failed to send.');
     } finally {
       setSending(false);

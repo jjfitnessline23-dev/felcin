@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { collection, doc, getDoc, getDocs, setDoc, deleteDoc } from 'firebase/firestore';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { auth, db, storage } from './firebase';
+import { logError } from './logError';
 
 function Profile({ userId }) {
   const [profile, setProfile] = useState(null);
@@ -49,7 +50,7 @@ function Profile({ userId }) {
 
         setLoading(false);
       } catch (error) {
-        console.error('Error loading profile:', error);
+        logError('Profile.loadProfile', error);
         setLoading(false);
       }
     };
@@ -73,7 +74,7 @@ function Profile({ userId }) {
       }
       setIsFollowing(!isFollowing);
     } catch (error) {
-      console.error('Error toggling follow:', error);
+      logError('Profile.toggleFollow', error);
     }
   };
 
@@ -91,7 +92,7 @@ function Profile({ userId }) {
       setProfile((prev) => ({ ...prev, displayName, bio }));
       setEditingBio(false);
     } catch (error) {
-      console.error('Error saving bio:', error);
+      logError('Profile.saveBio', error);
     }
   };
 
@@ -120,6 +121,7 @@ function Profile({ userId }) {
       await setDoc(doc(db, 'userProfiles', auth.currentUser.uid), { photoURL }, { merge: true });
       setProfile((prev) => ({ ...prev, photoURL }));
     } catch (error) {
+      logError('Profile.uploadProfilePhoto', error);
       setPhotoError('Failed to upload profile picture.');
     } finally {
       setPhotoUploading(false);

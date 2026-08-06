@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { collection, getDocs, doc, setDoc, deleteDoc } from 'firebase/firestore';
 import { db, auth } from './firebase';
+import { logError } from './logError';
 
 function Explore() {
   const [users, setUsers] = useState([]);
@@ -28,7 +29,7 @@ function Explore() {
         setUsers(allUsers);
         setLoading(false);
       } catch (error) {
-        console.error('Error loading users:', error);
+        logError('Explore.loadUsers', error);
         setLoading(false);
       }
     };
@@ -59,7 +60,7 @@ function Explore() {
         setFollowing((prev) => new Set(prev).add(userId));
       }
     } catch (error) {
-      console.error('Error toggling follow:', error);
+      logError('Explore.toggleFollow', error);
     }
   };
 

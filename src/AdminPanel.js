@@ -13,14 +13,16 @@ import {
   setDoc,
 } from 'firebase/firestore';
 import { auth, db } from './firebase';
+import { logError } from './logError';
 
-const TABS = ['overview', 'users', 'posts', 'comments', 'audit'];
+const TABS = ['overview', 'users', 'posts', 'comments', 'audit', 'errors'];
 const TAB_LABELS = {
   overview: '📊 Overview',
   users: '👥 Users',
   posts: '📝 Posts',
   comments: '💬 Comments',
   audit: '📋 Audit Log',
+  errors: '🚨 Errors',
 };
 
 function timeAgo(ts) {
@@ -48,6 +50,7 @@ function AdminPanel() {
   const [posts, setPosts] = useState([]);
   const [comments, setComments] = useState([]);
   const [auditLogs, setAuditLogs] = useState([]);
+  const [errorLogs, setErrorLogs] = useState([]);
   const [error, setError] = useState('');
   const [userSearch, setUserSearch] = useState('');
   const [postUserFilter, setPostUserFilter] = useState('');
@@ -99,6 +102,11 @@ function AdminPanel() {
         query(collection(db, 'adminLogs'), orderBy('timestamp', 'desc'), limit(100))
       );
       setAuditLogs(logsSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
+
+      const errorsSnap = await getDocs(
+        query(collection(db, 'errorLogs'), orderBy('timestamp', 'desc'), limit(200))
+      );
+      setErrorLogs(errorsSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
     } catch (err) {
       setError('Unable to load admin data: ' + err.message);
     } finally {
@@ -247,6 +255,7 @@ function AdminPanel() {
                     try {
                       await toggleAdminRole(u);
                     } catch (e) {
+                      logError('AdminPanel.toggleAdminRole', e);
                       setError(e.message);
                     }
                   }}
@@ -261,6 +270,7 @@ function AdminPanel() {
                     try {
                       await toggleSuspend(u);
                     } catch (e) {
+                      logError('AdminPanel.toggleSuspend', e);
                       setError(e.message);
                     }
                   }}
@@ -312,6 +322,7 @@ function AdminPanel() {
                   try {
                     await removePost(post);
                   } catch (e) {
+                    logError('AdminPanel.removePost', e);
                     setError(e.message);
                   }
                 }}
@@ -348,6 +359,7 @@ function AdminPanel() {
                   try {
                     await removeComment(comment);
                   } catch (e) {
+                    logError('AdminPanel.removeComment', e);
                     setError(e.message);
                   }
                 }}
@@ -370,6 +382,30 @@ function AdminPanel() {
               <span className="admin-log-detail">{log.detail}</span>
               <span className="muted" style={{ fontSize: 12 }}>{log.adminEmail}</span>
               <span className="admin-log-time muted">{timeAgo(log.timestamp)}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Errors */}
+      {tab === 'errors' && (
+        <div className="admin-block">
+          <p className="muted" style={{ marginTop: 0, fontSize: 13 }}>
+            Last 200 client errors across all platform features — {errorLogs.length} total
+          </p>
+          {errorLogs.length === 0 ? <p className="muted">No errors logged. Platform is healthy.</p> : null}
+          {errorLogs.map((log) => (
+            <div key={log.id} className="admin-row" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: 4 }}>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', width: '100%' }}>
+                <span className="badge badge-suspended" style={{ fontFamily: 'monospace', fontSize: 12 }}>{log.source}</span>
+                {log.code && <span className="badge badge-user" style={{ fontFamily: 'monospace', fontSize: 11 }}>{log.code}</span>}
+                <span className="admin-log-time muted" style={{ marginLeft: 'auto' }}>{timeAgo(log.timestamp)}</span>
+              </div>
+              <p style={{ margin: 0, fontSize: 13, color: 'var(--text)' }}>{log.message}</p>
+              <div style={{ display: 'flex', gap: 12, fontSize: 12 }}>
+                {log.userEmail && <span className="muted">{log.userEmail}</span>}
+                {log.page && <span className="muted">{log.page}</span>}
+              </div>
             </div>
           ))}
         </div>
