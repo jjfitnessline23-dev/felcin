@@ -9,11 +9,16 @@ import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import com.getcapacitor.BridgeActivity;
 import com.getcapacitor.BridgeWebChromeClient;
+import com.tenjin.android.TenjinSDK;
 
 public class MainActivity extends BridgeActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        // Tenjin install attribution — tracks AppLovin ad installs
+        TenjinSDK tenjin = TenjinSDK.getInstance(this, "DDHDGPBEZ6R5ZYDC77IPE6TNRZXQFKKX");
+        tenjin.connect();
         WebView webView = getBridge().getWebView();
         if (webView != null) {
             webView.clearCache(true);

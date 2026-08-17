@@ -25,3 +25,5 @@ yarn-error.log*
 # Deployment script (contains server credentials — keep local only)
 deploy.py
 .env
+
+.vercel

@@ -54,6 +54,9 @@
     <!-- Network -->
     <uses-permission android:name="android.permission.INTERNET" />
 
+    <!-- Tenjin — advertising ID for install attribution -->
+    <uses-permission android:name="com.google.android.gms.permission.AD_ID" />
+
     <!-- Location (required by Run Tracker) -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
