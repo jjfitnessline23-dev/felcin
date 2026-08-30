@@ -488,48 +488,22 @@ workflows:
 
       - name: Set up code signing
         script: |
-          echo "$DIST_CERT_P12" | base64 --decode > /tmp/distribution.p12
-
-          KEYCHAIN=/tmp/app-signing.keychain-db
-          security create-keychain -p codemagic123 "$KEYCHAIN"
-          security set-keychain-settings -lut 21600 "$KEYCHAIN"
-          security unlock-keychain -p codemagic123 "$KEYCHAIN"
-          security import /tmp/distribution.p12 -k "$KEYCHAIN" -P "$DIST_CERT_PASSWORD" \
-            -T /usr/bin/codesign -T /usr/bin/xcodebuild
-          security set-key-partition-list -S apple-tool:,apple: -s -k codemagic123 "$KEYCHAIN"
-          security list-keychains -d user -s "$KEYCHAIN" ~/Library/Keychains/login.keychain-db
-
-          PROFILES="$HOME/Library/MobileDevice/Provisioning Profiles"
-          mkdir -p "$PROFILES"
-          echo "$PROVISIONING_PROFILE" | base64 --decode > /tmp/profile.mobileprovision
-          security cms -D -i /tmp/profile.mobileprovision -o /tmp/decoded.plist 2>/dev/null
-          UUID=$(/usr/libexec/PlistBuddy -c 'Print :UUID' /tmp/decoded.plist)
-          cp /tmp/profile.mobileprovision "$PROFILES/$UUID.mobileprovision"
-
-          echo "$WATCH_PROVISIONING_PROFILE" | base64 --decode > /tmp/watch_profile.mobileprovision
-          security cms -D -i /tmp/watch_profile.mobileprovision -o /tmp/watch_decoded.plist 2>/dev/null
-          WATCH_UUID=$(/usr/libexec/PlistBuddy -c 'Print :UUID' /tmp/watch_decoded.plist)
-
+          set -e
+          # Rewrite the Capacitor bundle id to the App Store id BEFORE fetching
+          # profiles, so xcode-project use-profiles matches the app target to its profile.
           PBXPROJ="ios/App/App.xcodeproj/project.pbxproj"
-          perl -i -pe "s/CODE_SIGN_STYLE = Automatic;/CODE_SIGN_STYLE = Manual;\n\t\t\t\tPROVISIONING_PROFILE_SPECIFIER = \"$UUID\";/g" "$PBXPROJ"
-          perl -i -pe 's/CODE_SIGN_IDENTITY = "iPhone Developer";/CODE_SIGN_IDENTITY = "Apple Distribution";/g' "$PBXPROJ"
           perl -i -pe 's/PRODUCT_BUNDLE_IDENTIFIER = ("?)app\.felcin\.social\1;/PRODUCT_BUNDLE_IDENTIFIER = "com.felcin.app";/g' "$PBXPROJ"
 
-          cat > /tmp/export_options.plist << PLIST
-          <?xml version="1.0" encoding="UTF-8"?>
-          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-          <plist version="1.0"><dict>
-            <key>method</key><string>app-store-connect</string>
-            <key>teamID</key><string>UWSVWR4VTX</string>
-            <key>signingStyle</key><string>manual</string>
-            <key>signingCertificate</key><string>Apple Distribution</string>
-            <key>provisioningProfiles</key>
-            <dict>
-              <key>com.felcin.app</key><string>$UUID</string>
-              <key>com.felcin.app.watchkitapp</key><string>$WATCH_UUID</string>
-            </dict>
-          </dict></plist>
-          PLIST
+          # Automatic signing via the connected App Store Connect integration
+          # (integrations: app_store_connect: Codemagic). Codemagic fetches — or
+          # creates — the distribution certificate + provisioning profiles fresh on
+          # every build, so an expired/stale cert can never be used. Covers both the
+          # app and the Apple Watch target.
+          keychain initialize
+          app-store-connect fetch-signing-files "com.felcin.app" --type IOS_APP_STORE --create
+          app-store-connect fetch-signing-files "com.felcin.app.watchkitapp" --type IOS_APP_STORE --create
+          keychain add-certificates
+          xcode-project use-profiles
 
       - name: Set build number
         script: |
@@ -538,26 +512,13 @@ workflows:
       - name: Build IPA
         script: |
           set -eo pipefail
-          ARCHIVE="build/ios/xcarchive/App.xcarchive"
-          IPA_DIR="build/ios/ipa"
-          mkdir -p "$(dirname $ARCHIVE)" "$IPA_DIR"
-
-          xcodebuild \
-            -workspace "$XCODE_WORKSPACE" -scheme "$XCODE_SCHEME" \
-            -archivePath "$ARCHIVE" archive \
-            COMPILER_INDEX_STORE_ENABLE=NO \
-            DEVELOPMENT_TEAM=UWSVWR4VTX \
-            CODE_SIGN_STYLE=Manual \
-            CODE_SIGN_IDENTITY="Apple Distribution" \
-            MARKETING_VERSION=1.8 \
-            CURRENT_PROJECT_VERSION=$BUILD_NUMBER
-
-          xcodebuild -exportArchive \
-            -archivePath "$ARCHIVE" \
-            -exportPath "$IPA_DIR" \
-            -exportOptionsPlist /tmp/export_options.plist
-
-          echo "IPA: $(find $IPA_DIR -name '*.ipa' | head -1)"
+          # Build + archive + export the IPA using the profiles configured by
+          # xcode-project use-profiles (automatic signing).
+          xcode-project build-ipa \
+            --workspace "$XCODE_WORKSPACE" \
+            --scheme "$XCODE_SCHEME" \
+            --archive-xcargs "COMPILER_INDEX_STORE_ENABLE=NO MARKETING_VERSION=1.8 CURRENT_PROJECT_VERSION=$BUILD_NUMBER"
+          echo "IPA: $(find build/ios/ipa -name '*.ipa' | head -1)"
 
     artifacts:
       - build/ios/ipa/*.ipa
