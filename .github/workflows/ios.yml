@@ -1,9 +1,9 @@
 name: iOS App Store
 
 on:
-  push:
-    branches:
-      - master
+  # iOS is built via Codemagic. This GitHub Actions workflow is manual-only
+  # (workflow_dispatch) so pushes to master don't trigger duplicate/failing iOS
+  # builds — matches the Android workflow.
   workflow_dispatch:
 
 jobs:
