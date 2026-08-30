@@ -49,10 +49,20 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths" />
         </provider>
+
+        <!-- Keeps podcast/audio playback alive while the app is backgrounded -->
+        <service
+            android:name=".MediaPlaybackService"
+            android:exported="false"
+            android:foregroundServiceType="mediaPlayback" />
     </application>
 
     <!-- Network -->
     <uses-permission android:name="android.permission.INTERNET" />
+
+    <!-- Background audio playback (keep podcasts playing when app is backgrounded) -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
 
     <!-- Tenjin — advertising ID for install attribution -->
     <uses-permission android:name="com.google.android.gms.permission.AD_ID" />

@@ -212,7 +212,7 @@ workflows:
           plist['NSLocationWhenInUseUsageDescription'] = 'Felcin uses your location to track your running routes live on the map and save your PRs.'
           plist['NSLocationAlwaysAndWhenInUseUsageDescription'] = 'Felcin tracks your location in the background so your run continues when the screen locks.'
           plist['NSLocationAlwaysUsageDescription'] = 'Felcin tracks your location in the background so your run continues when the screen locks.'
-          plist['UIBackgroundModes'] = ['location']
+          plist['UIBackgroundModes'] = ['location', 'audio']
           plist['NSCameraUsageDescription'] = 'Felcin needs camera access to take photos and videos for posts and stories.'
           plist['NSMicrophoneUsageDescription'] = 'Felcin needs microphone access to record audio for videos.'
           plist['NSPhotoLibraryUsageDescription'] = 'Felcin needs photo library access to share photos and videos.'
@@ -341,6 +341,7 @@ workflows:
           cat > "ios/App/App/AppDelegate.swift" << 'SWIFTEOF'
           import UIKit
           import Capacitor
+          import AVFoundation
           import FirebaseCore
           import FirebaseAuth
           import WatchConnectivity
@@ -351,6 +352,16 @@ workflows:
 
               func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
                   FirebaseApp.configure()
+
+                  // Allow audio (podcasts) to keep playing when the app is backgrounded
+                  // or the screen is locked. Paired with UIBackgroundModes: audio.
+                  // Set only the category (not active) so we don't interrupt the user's
+                  // other music on launch — iOS activates the session when audio plays.
+                  do {
+                      try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default, options: [])
+                  } catch {
+                      print("AVAudioSession setup failed: \(error)")
+                  }
 
                   // Listen for Firebase Auth state — store UID in UserDefaults and push to Watch
                   // This fires before the web app loads, so Watch always has the UID

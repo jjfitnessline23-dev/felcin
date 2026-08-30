@@ -1,9 +1,12 @@
 package app.felcin.social;
 
+import android.content.Intent;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Message;
 import android.view.View;
 import android.view.ViewGroup;
+import android.webkit.JavascriptInterface;
 import android.webkit.WebChromeClient;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
@@ -53,6 +56,32 @@ public class MainActivity extends BridgeActivity {
                     return true;
                 }
             });
+
+            // Bridge the web player to a foreground service so audio keeps playing
+            // when the app is backgrounded. The website calls
+            // window.FelcinNativeAudio.startPlayback() / stopPlayback().
+            webView.addJavascriptInterface(new NativeAudioBridge(), "FelcinNativeAudio");
+        }
+    }
+
+    /** Exposed to the felcin.com web player to start/stop background audio. */
+    public class NativeAudioBridge {
+        @JavascriptInterface
+        public void startPlayback() {
+            runOnUiThread(() -> {
+                Intent i = new Intent(MainActivity.this, MediaPlaybackService.class);
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    startForegroundService(i);
+                } else {
+                    startService(i);
+                }
+            });
+        }
+
+        @JavascriptInterface
+        public void stopPlayback() {
+            runOnUiThread(() ->
+                stopService(new Intent(MainActivity.this, MediaPlaybackService.class)));
         }
     }
 }
