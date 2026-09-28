@@ -500,6 +500,12 @@ workflows:
           # every build, so an expired/stale cert can never be used. Covers both the
           # app and the Apple Watch target.
           keychain initialize
+          # Create + SAVE the distribution certificate (with its private key) ONCE up
+          # front, so both fetch-signing-files calls below reuse the SAME local cert+key.
+          # The two separate "--create" calls previously raced: the second (watch target)
+          # re-fetched the cert the first made but couldn't find its private key, giving
+          # "Cannot save Signing Certificates without certificate private key".
+          app-store-connect certificates create --type IOS_DISTRIBUTION --save
           app-store-connect fetch-signing-files "com.felcin.app" --type IOS_APP_STORE --create
           app-store-connect fetch-signing-files "com.felcin.app.watchkitapp" --type IOS_APP_STORE --create
           keychain add-certificates
