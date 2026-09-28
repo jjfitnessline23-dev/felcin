@@ -500,10 +500,18 @@ workflows:
           # every build, so an expired/stale cert can never be used. Covers both the
           # app and the Apple Watch target.
           keychain initialize
-          # Codemagic's tool isn't auto-generating a signing private key in this setup,
-          # so we generate one ourselves and pass it to BOTH signing-file calls. That
-          # makes the app + watch target share ONE certificate built with THIS key,
-          # fixing "Cannot save Signing Certificates without certificate private key".
+          # Self-healing signing. We generate a fresh private key each build and create
+          # one certificate from it. To avoid Apple's 2-cert limit and stale keyless
+          # certs piling up (which broke every build), first REVOKE any existing
+          # distribution certificates so we always start from a clean slate.
+          set +e
+          app-store-connect certificates list --certificate-type IOS_DISTRIBUTION --json > /tmp/dist_certs.json 2>/dev/null
+          python3 -c "import json,sys; d=json.load(open('/tmp/dist_certs.json')); [print(c.get('id','')) for c in (d if isinstance(d,list) else d.get('data',[]))]" 2>/dev/null | while read cid; do
+            [ -n "$cid" ] && app-store-connect certificates delete "$cid" --yes 2>/dev/null
+          done
+          set -e
+          # Generate our own key and pass it to BOTH signing-file calls so the app and
+          # watch target share ONE certificate built with THIS key.
           CERT_KEY="$(pwd)/dist_key.pem"
           openssl genrsa -out "$CERT_KEY" 2048
           app-store-connect fetch-signing-files "com.felcin.app" --type IOS_APP_STORE --certificate-key=@file:"$CERT_KEY" --create
